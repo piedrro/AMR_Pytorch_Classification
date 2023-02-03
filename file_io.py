@@ -26,13 +26,32 @@ import traceback
 from functools import partial
 import random
 import torch.nn.functional as F
-
+import pathlib
 
 def extract_list(data, mode = "file"):
     
     data = data.strip("[]").replace("'","").split(", ")
     
     return data
+
+def update_akseg_paths(path, AKSEG_DIRECTORY, USER_INITIAL):
+    
+    path = pathlib.Path(path.replace("\\","/"))
+    AKSEG_DIRECTORY = pathlib.Path(AKSEG_DIRECTORY)
+        
+    
+    index = path.parts.index(str(USER_INITIAL))
+    
+    parts = (*AKSEG_DIRECTORY.parts, "Images", *path.parts[index:])
+    path = pathlib.Path('').joinpath(*parts)
+
+    return path
+
+
+
+
+
+
 
 def get_metadata(AKSEG_DIRECTORY, USER_INITIAL,
                  channel_list, antibiotic_list=[], microscope_list=[],
@@ -44,6 +63,10 @@ def get_metadata(AKSEG_DIRECTORY, USER_INITIAL,
     
     akseg_metadata["file_list"] = akseg_metadata["file_list"].apply(lambda data: extract_list(data))
     akseg_metadata["channel_list"] = akseg_metadata["channel_list"].apply(lambda data: extract_list(data, mode = "channel"))
+    
+    akseg_metadata["image_save_path"] = akseg_metadata["image_save_path"].apply(lambda path: update_akseg_paths(path, AKSEG_DIRECTORY, USER_INITIAL))
+    akseg_metadata["mask_save_path"] = akseg_metadata["mask_save_path"].apply(lambda path: update_akseg_paths(path, AKSEG_DIRECTORY, USER_INITIAL))
+    akseg_metadata["label_save_path"] = akseg_metadata["label_save_path"].apply(lambda path: update_akseg_paths(path, AKSEG_DIRECTORY, USER_INITIAL))
     
     akseg_metadata = akseg_metadata.drop_duplicates(subset=['akseg_hash'], keep="first")
     
@@ -252,8 +275,12 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
         if channel in channel_list:
             
             img_path = os.path.abspath(os.path.join(file_dir,file_name))
-            json_path = img_path.replace("\\images\\","\\json\\").replace(".tif",".txt")
             
+            json_path = pathlib.Path(img_path.replace(".tif", ".txt"))
+            index = json_path.parts.index("images")
+            parts = (*json_path.parts[:index], "json", *json_path.parts[index+1:])
+            json_path = pathlib.Path('').joinpath(*parts)
+
             img = tifffile.imread(img_path)
             image_data.append(img)
             image_channels.append(channel)
@@ -331,11 +358,6 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
             
             img = normalize99(img)
             img = rescale01(img)
-            
-            img = img.astype(np.float32)
-            
-            cell_images[i][j] = img
-                
                 
     return cell_dataset, cell_images, cell_labels, cell_file_names
 
@@ -355,14 +377,14 @@ def cache_data(data, image_size, antibiotic_list, channel_list, cell_list,
     with Pool(30) as pool:
         
         results = pool.map(partial(get_cell_images,
-                                   image_size=image_size,
-                                   channel_list = channel_list,
-                                   cell_list = cell_list,
-                                   antibiotic_list = antibiotic_list,
-                                   import_limit = import_limit,
-                                   colicoords = colicoords,
-                                   mask_background = mask_background,
-                                   resize=resize), data)
+                                    image_size=image_size,
+                                    channel_list = channel_list,
+                                    cell_list = cell_list,
+                                    antibiotic_list = antibiotic_list,
+                                    import_limit = import_limit,
+                                    colicoords = colicoords,
+                                    mask_background = mask_background,
+                                    resize=resize), data)
         
         dataset, images, labels, file_names = zip(*results)
         
@@ -372,10 +394,10 @@ def cache_data(data, image_size, antibiotic_list, channel_list, cell_list,
         file_names = [item for sublist in file_names for item in sublist]
 
     cached_data = dict(dataset=dataset,
-                       images=images,
-                       labels=labels,
-                       file_names=file_names,
-                       antibiotic_list = antibiotic_list)
+                        images=images,
+                        labels=labels,
+                        file_names=file_names,
+                        antibiotic_list = antibiotic_list)
      
     return cached_data
 

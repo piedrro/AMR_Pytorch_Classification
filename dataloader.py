@@ -48,8 +48,7 @@ class load_dataset(data.Dataset):
         
         #pixel transforms
         transform = A.Compose([A.augmentations.transforms.GaussNoise(var_limit=0.01, per_channel=True),
-                               A.RandomBrightnessContrast(brightness_limit=0.5, contrast_limit=0.5),
-                               A.augmentations.transforms.Blur(blur_limit=1)])
+                               A.RandomBrightnessContrast(brightness_limit=0.5, contrast_limit=0.5)])
         
         img = transform(image=img)['image']
         img[mask==0] = 0

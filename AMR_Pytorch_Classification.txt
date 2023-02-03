@@ -169,7 +169,6 @@ https://repo.anaconda.com/pkgs/main/win-64/arrow-1.2.3-py38haa95532_0.conda
 https://repo.anaconda.com/pkgs/main/win-64/astroid-2.11.7-py38haa95532_0.conda
 https://repo.anaconda.com/pkgs/main/noarch/bleach-4.1.0-pyhd3eb1b0_0.conda
 https://conda.anaconda.org/intel/win-64/brotlipy-0.7.0-py38h2bbff1b_1003.tar.bz2
-https://conda.anaconda.org/intel/win-64/cryptography-37.0.1-py38h21b164f_0.tar.bz2
 https://repo.anaconda.com/pkgs/main/noarch/flake8-4.0.1-pyhd3eb1b0_1.conda
 https://repo.anaconda.com/pkgs/main/noarch/importlib_metadata-4.11.3-hd3eb1b0_0.conda
 https://repo.anaconda.com/pkgs/main/win-64/ipython-7.31.1-py38haa95532_1.conda
@@ -181,7 +180,6 @@ https://repo.anaconda.com/pkgs/main/win-64/pynacl-1.5.0-py38h8cc25b3_0.conda
 https://repo.anaconda.com/pkgs/main/win-64/qt-main-5.15.2-he8e5bd7_7.conda
 https://repo.anaconda.com/pkgs/main/win-64/qtpy-2.2.0-py38haa95532_0.conda
 https://repo.anaconda.com/pkgs/main/win-64/sip-6.6.2-py38hd77b12b_0.conda
-https://repo.anaconda.com/pkgs/main/win-64/bcrypt-3.2.0-py38h2bbff1b_1.conda
 https://repo.anaconda.com/pkgs/main/win-64/ipykernel-6.15.2-py38haa95532_0.conda
 https://repo.anaconda.com/pkgs/main/noarch/jinja2-time-0.2.0-pyhd3eb1b0_3.conda
 https://repo.anaconda.com/pkgs/main/win-64/keyring-23.4.0-py38haa95532_0.conda

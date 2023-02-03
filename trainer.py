@@ -213,20 +213,28 @@ class Trainer:
         condition = '[' + '-'.join(condition) + ']'
 
         if os.path.exists(save_dir):
-            model_dir = save_dir + "/models/" + model_folder_name + "_" + self.timestamp + "/" + condition + "/" + "fold" + str(self.fold) + "/"
-        else:
-            model_dir = "models/" + model_folder_name + "_" + self.timestamp + "/" + condition + "/" + "fold" + str(self.fold) + "/"
             
-        model_dir = os.path.abspath(model_dir)
+            parts = (save_dir,"models",model_folder_name+"_"+self.timestamp,condition,"fold"+str(self.fold))
+            model_dir = pathlib.Path('').joinpath(*parts)
+
+        else:
+            
+            parts = ("models",model_folder_name+"_"+self.timestamp,condition,"fold"+str(self.fold))
+            model_dir = pathlib.Path('').joinpath(*parts)
+
+        # model_dir = os.path.abspath(model_dir)
         
         if self.kfolds > 0:
-            self.model_path = model_dir + "AMRClassification_" + condition + "_" + "fold" + str(self.fold) + "_" + self.timestamp
+            self.model_path = str(pathlib.Path('').joinpath(*model_dir.parts,"AMRClassification_" + condition + "_" + "fold" + str(self.fold) + "_" + self.timestamp))
+                        
         else:
-            model_dir = model_dir.replace(model_dir.split("\\")[-1],"")
-            self.model_path = model_dir + "AMRClassification_" + condition + "_" + self.timestamp
-        
-  
+            
+            model_dir = pathlib.Path(model_dir)
+            self.model_path = str(pathlib.Path('').joinpath(*model_dir.parts[:-1],"AMRClassification_" + condition + "_" + self.timestamp))
+                                              
+
         if not os.path.exists(model_dir):
+            print(model_dir)
             os.makedirs(model_dir)
 
         if pretrained_model:
@@ -308,7 +316,7 @@ class Trainer:
         train_accuracies = []
 
         batch_iter = tqdm.tqdm(enumerate(self.trainloader), 'Training', total=len(self.trainloader), position=1,
-                               leave=False)
+                                leave=False)
 
         for i, (images, labels) in batch_iter:
             images, labels = images.to(self.device), labels.to(self.device)  # send to device (GPU or CPU)
@@ -343,7 +351,7 @@ class Trainer:
         valid_accuracies = []
 
         batch_iter = tqdm.tqdm(enumerate(self.valoader), 'Validation', total=len(self.valoader), position=1,
-                               leave=False)
+                                leave=False)
 
         for i, (images, labels) in batch_iter:
             images, labels = images.to(self.device), labels.to(self.device)  # send to device (GPU or CPU)
@@ -367,10 +375,10 @@ class Trainer:
 
         batch_iter.close()
 
-    def evaluate(self, model, model_path, train_images, test_images, test_labels, num_classes):
+    # def evaluate(self, model, model_path, train_images, test_images, test_labels, num_classes):
         
-        model_data = torch.load(model_path)
-        model = model.load_state_dict(model_data['model_state_dict'])
+    #     model_data = torch.load(model_path)
+    #     model = model.load_state_dict(model_data['model_state_dict'])
 
         # self.model.eval()  # evaluation mode
 
@@ -442,7 +450,7 @@ class Trainer:
         
         # generate_plots(model_data, self.model_path)
         
-        return model_data
+        return #model_data
 
 
 def normalize99(X):
