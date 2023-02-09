@@ -16,4 +16,3 @@ dependencies:
   - matplotlib
   - shap
   - ipython
-prefix: /home/farrara/anaconda3/envs/AMR_PyTorch
