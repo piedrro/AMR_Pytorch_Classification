@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="farrara@localhost:6000 password" remoteFilesAllowedToDisappearOnAutoupload="false" showExcludedInSync="true">
     <serverData>
+      <paths name="farrara@localhost:6000 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/farrara/Code/AMR_PyTorch" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="farrara@localhost:6000 password (3)">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/Code/AMR_PyTorch/" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
     </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>

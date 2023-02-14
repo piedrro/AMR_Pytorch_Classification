@@ -1,7 +1,6 @@
 # This file may be used to create an environment using:
 # $ conda create --name <env> --file <this file>
 # platform: win-64
-@EXPLICIT
 https://repo.anaconda.com/pkgs/main/win-64/blas-1.0-mkl.conda
 https://conda.anaconda.org/intel/win-64/ca-certificates-2022.07.19-haa95532_0.tar.bz2
 https://conda.anaconda.org/intel/win-64/intel-cmplr-lib-rt-2022.2.0-intel_9553.tar.bz2
