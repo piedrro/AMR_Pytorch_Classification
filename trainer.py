@@ -523,7 +523,7 @@ class Trainer:
     def evaluate(self, model, model_path, train_images, test_images, test_labels, num_classes):
         
         model_data = torch.load(model_path)
-        model = model.load_state_dict(model_data['model_state_dict'])
+        self.model.load_state_dict(model_data['model_state_dict'])
 
         self.model.eval()  # evaluation mode
 
