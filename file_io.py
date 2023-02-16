@@ -343,7 +343,7 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
 
             cell_image_crop = normalize99(cell_image_crop)
 
-            if np.max(cell_image_crop) >= np.min(cell_image_crop):
+            if (np.max(cell_image_crop) - np.min(cell_image_crop)) > 0:
 
                 cell_image_crop = rescale01(cell_image_crop)
                 cell_image_crop = cell_image_crop.astype(np.float32)
