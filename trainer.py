@@ -4,6 +4,7 @@ Created on Wed Feb  9 14:23:14 2022
 
 @author: turnerp
 """
+import traceback
 
 import numpy as np
 import torch
@@ -139,7 +140,7 @@ def generate_shap_image(deep_explainer,test_image):
         
         sv = shap_values[i]
         
-        v_min, v_max = np.percentile(sv[sv > 0], (1, 99))
+        v_min, v_max = np.nanpercentile(sv[sv > 0], (1, 99))
         sv = exposure.rescale_intensity(sv, in_range=(v_min, v_max))
         
         sv = (sv - np.min(sv)) / (np.max(sv) - np.min(sv))
@@ -420,7 +421,7 @@ class Trainer:
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()  # learning rate scheduler step
 
-            if self.validation_loss[-1] == np.min(self.validation_loss):
+            if self.validation_accuracy[-1] == np.max(self.validation_accuracy):
                 
                 self.model.eval()
                 
@@ -552,20 +553,22 @@ class Trainer:
         
         train_images = torch.from_numpy(np.stack(train_images[:100])).float().to(self.device)
         deep_explainer = shap.DeepExplainer(self.model.eval(), train_images)
-            
+
         for i, x, y in zip(progressbar, test_images, test_labels):
-            
-            x = torch.from_numpy(x.copy()).float()
-            y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
+            try:
+                x = torch.from_numpy(x.copy()).float()
+                y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
 
-            x = torch.unsqueeze(x, 0)
-            y = torch.unsqueeze(y, 0)
+                x = torch.unsqueeze(x, 0)
+                y = torch.unsqueeze(y, 0)
 
-            image, label = x.to(self.device), y.to(self.device)
-        
-            shap_img = generate_shap_image(deep_explainer,image)
-            saliency_maps.append(shap_img)
+                image, label = x.to(self.device), y.to(self.device)
 
+                shap_img = generate_shap_image(deep_explainer,image)
+                saliency_maps.append(shap_img)
+            except:
+                print(traceback.format_exc())
+                pass
                 
         accuracy = self.correct_predictions(torch.tensor(true_labels), torch.tensor(pred_labels))
 
