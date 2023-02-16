@@ -460,22 +460,25 @@ class Trainer:
         for i, (images, labels) in batch_iter:
             images, labels = images.to(self.device), labels.to(self.device)  # send to device (GPU or CPU)
 
-            self.optimizer.zero_grad()  # zerograd the parameters
-            pred_label = self.model(images)  # one forward pass
+            # checks if any images contains a NaN
+            if not torch.isnan(images).any():
 
-            loss = self.criterion(pred_label, labels)
-            train_losses.append(loss.item())
+                self.optimizer.zero_grad()  # zerograd the parameters
+                pred_label = self.model(images)  # one forward pass
 
-            accuracy = self.correct_predictions(pred_label, labels)
-            train_accuracies.append(accuracy)
+                loss = self.criterion(pred_label, labels)
+                train_losses.append(loss.item())
 
-            loss.backward()  # one backward pass
-            self.optimizer.step()  # update the parameters
+                accuracy = self.correct_predictions(pred_label, labels)
+                train_accuracies.append(accuracy)
 
-            current_lr = self.optimizer.param_groups[0]['lr']
+                loss.backward()  # one backward pass
+                self.optimizer.step()  # update the parameters
 
-            batch_iter.set_description(
-                f'Training: (loss {np.mean(train_losses):.2f}, Acc {np.mean(train_accuracies):.2f} LR {current_lr})')  # update progressbar
+                current_lr = self.optimizer.param_groups[0]['lr']
+
+                batch_iter.set_description(
+                    f'Training: (loss {np.mean(train_losses):.2f}, Acc {np.mean(train_accuracies):.2f} LR {current_lr})')  # update progressbar
 
         self.training_loss.append(np.mean(train_losses))
         self.training_accuracy.append(np.mean(train_accuracies))
@@ -495,19 +498,22 @@ class Trainer:
         for i, (images, labels) in batch_iter:
             images, labels = images.to(self.device), labels.to(self.device)  # send to device (GPU or CPU)
 
-            with torch.no_grad():
-                pred_label = self.model(images)
+            #checks if any images contains a NaN
+            if not torch.isnan(images).any():
 
-                loss = self.criterion(pred_label, labels)
-                valid_losses.append(loss.item())
+                with torch.no_grad():
+                    pred_label = self.model(images)
 
-                accuracy = self.correct_predictions(pred_label, labels)
-                valid_accuracies.append(accuracy)
+                    loss = self.criterion(pred_label, labels)
+                    valid_losses.append(loss.item())
 
-                current_lr = self.optimizer.param_groups[0]['lr']
+                    accuracy = self.correct_predictions(pred_label, labels)
+                    valid_accuracies.append(accuracy)
 
-                batch_iter.set_description(
-                    f'Validation: (loss {np.mean(valid_losses):.2f}, Acc {np.mean(valid_accuracies):.2f} LR {current_lr})')  # update progressbar
+                    current_lr = self.optimizer.param_groups[0]['lr']
+
+                    batch_iter.set_description(
+                        f'Validation: (loss {np.mean(valid_losses):.2f}, Acc {np.mean(valid_accuracies):.2f} LR {current_lr})')  # update progressbar
 
         self.validation_loss.append(np.mean(valid_losses))
         self.validation_accuracy.append(np.mean(valid_accuracies))
@@ -530,24 +536,27 @@ class Trainer:
         progressbar = tqdm.tqdm(range(len(test_images)), desc='Evaluating', position=0, leave=False)
 
         for i, x, y in zip(progressbar, test_images, test_labels):
+
             # Typecasting
             x = torch.from_numpy(x.copy()).float()
             y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
 
-            x = torch.unsqueeze(x, 0)
-            y = torch.unsqueeze(y, 0)
+            if not torch.isnan(x).any():
 
-            image, label = x.to(self.device), y.to(self.device)
-            
-            with torch.no_grad():
-                pred_label = self.model(image)  # send through model/network
+                x = torch.unsqueeze(x, 0)
+                y = torch.unsqueeze(y, 0)
 
-                loss = self.criterion(pred_label, label)
+                image, label = x.to(self.device), y.to(self.device)
 
-                pred_confidences.append(torch.nn.functional.softmax(pred_label, dim=1).tolist())
-                pred_labels.append(pred_label.data.cpu().argmax().numpy().tolist())
-                true_labels.append(label.data.cpu().argmax().numpy().tolist())
-                pred_losses.append(loss.item())
+                with torch.no_grad():
+                    pred_label = self.model(image)  # send through model/network
+
+                    loss = self.criterion(pred_label, label)
+
+                    pred_confidences.append(torch.nn.functional.softmax(pred_label, dim=1).tolist())
+                    pred_labels.append(pred_label.data.cpu().argmax().numpy().tolist())
+                    true_labels.append(label.data.cpu().argmax().numpy().tolist())
+                    pred_losses.append(loss.item())
         
         progressbar = tqdm.tqdm(range(len(test_images)), desc='Generating Saliency Maps', position=0, leave=False)
         
@@ -559,13 +568,15 @@ class Trainer:
                 x = torch.from_numpy(x.copy()).float()
                 y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
 
-                x = torch.unsqueeze(x, 0)
-                y = torch.unsqueeze(y, 0)
+                if not torch.isnan(x).any():
 
-                image, label = x.to(self.device), y.to(self.device)
+                    x = torch.unsqueeze(x, 0)
+                    y = torch.unsqueeze(y, 0)
 
-                shap_img = generate_shap_image(deep_explainer,image)
-                saliency_maps.append(shap_img)
+                    image, label = x.to(self.device), y.to(self.device)
+
+                    shap_img = generate_shap_image(deep_explainer,image)
+                    saliency_maps.append(shap_img)
             except:
                 print(traceback.format_exc())
                 pass

@@ -26,12 +26,13 @@ test_metadata = {"user_meta3": "BioRepB"}
 model_backbone = 'densenet121'
 ratio_train = 0.9
 val_test_split = 0.5
-BATCH_SIZE = 10
+BATCH_SIZE = 100
 LEARNING_RATE = 0.001
 EPOCHS = 1
 AUGMENT = True
 
 AKSEG_DIRECTORY = r"/run/user/26441/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG/"
+AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG"
 
 USER_INITIAL = "AF"
 
@@ -124,8 +125,7 @@ if __name__ == '__main__':
                       batch_size = BATCH_SIZE,
                       model_folder_name = MODEL_FOLDER_NAME)
 
-    # model_path = trainer.train()
-    model_path = r'/home/farrara/Code/AMR_PyTorch/models/AntibioticClassification_230215_1304/[Ciprofloxacin-Cy3]/AMRClassification_[Ciprofloxacin-Cy3]_230215_1304'
+    model_path = trainer.train()
 
     model_data = trainer.evaluate(model,
                                   model_path,

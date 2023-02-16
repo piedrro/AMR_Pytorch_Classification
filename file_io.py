@@ -340,32 +340,23 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
             cell_image_crop[:,cell_mask_crop==0] = 0
             
             cell_image_crop = resize_image(image_size, h, w, cell_image_crop, colicoords, resize)
-            
-            cell_images.append(cell_image_crop)
-            
-            label = antibiotic_list.index(dat_antibiotic)
 
-            cell_labels.append(label)
-            
-            cell_file_names.append(file_name)
-            cell_dataset.append(dat_dataset)
-            
-    #normalise and rescale images
-      
-    for i in range(len(cell_images)):
-        
-        image = cell_images[i]
-        
-        for j in range(image.shape[0]):
-            
-            img = image[j]
-            
-            img = normalize99(img)
-            img = rescale01(img)
-            img = img.astype(np.float32)
+            cell_image_crop = normalize99(cell_image_crop)
 
-            cell_images[i][j] = img
-                
+            if np.max(cell_image_crop) >= np.min(cell_image_crop):
+
+                cell_image_crop = rescale01(cell_image_crop)
+                cell_image_crop = cell_image_crop.astype(np.float32)
+    
+                cell_images.append(cell_image_crop)
+    
+                label = antibiotic_list.index(dat_antibiotic)
+    
+                cell_labels.append(label)
+    
+                cell_file_names.append(file_name)
+                cell_dataset.append(dat_dataset)
+
     return cell_dataset, cell_images, cell_labels, cell_file_names
 
 
