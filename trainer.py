@@ -4,6 +4,7 @@ Created on Wed Feb  9 14:23:14 2022
 
 @author: turnerp
 """
+import traceback
 
 import numpy as np
 import torch
@@ -13,6 +14,8 @@ from skimage import exposure
 from datetime import datetime
 import os
 import pathlib
+import itertools
+from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import confusion_matrix
 # from visalize import generate_plots
@@ -124,10 +127,6 @@ def get_image_predictions(images,saliency,test_labels,pred_labels,pred_confidenc
     return miss_predictions
 
 
-
-
-
-
 def generate_shap_image(deep_explainer,test_image):
 
     shap_values = deep_explainer.shap_values(test_image)
@@ -141,7 +140,7 @@ def generate_shap_image(deep_explainer,test_image):
         
         sv = shap_values[i]
         
-        v_min, v_max = np.percentile(sv[sv > 0], (1, 99))
+        v_min, v_max = np.nanpercentile(sv[sv > 0], (1, 99))
         sv = exposure.rescale_intensity(sv, in_range=(v_min, v_max))
         
         sv = (sv - np.min(sv)) / (np.max(sv) - np.min(sv))
@@ -155,6 +154,147 @@ def generate_shap_image(deep_explainer,test_image):
         
     return shap_img
 
+
+def plot_confusion_matrix(cm, classes, num_samples=1, normalize=False, title='Confusion matrix', cmap=plt.cm.Blues,
+                          save_path=None):
+    if normalize:
+        cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes)
+    plt.yticks(tick_marks, classes, rotation=90, ha='center', rotation_mode='anchor')
+    plt.tick_params(axis='y', which='major', pad=10)
+
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm_norm[i, j], fmt) + " (" + str(int(cm_norm[i, j] * num_samples)) + ")",
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.xlabel('Predicted label')
+    plt.ylabel('True label')
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', pad_inches=0, dpi=300)
+        plt.show()
+        image = Image.open(save_path)
+        ar = np.asarray(image)
+    else:
+        with io.BytesIO() as buffer:
+            plt.savefig(buffer, format="raw", bbox_inches='tight', pad_inches=0, dpi=300)
+            plt.show()
+            image = Image.open(buffer)
+            ar = np.asarray(image)
+
+    plt.close()
+
+    return ar
+
+
+def generate_prediction_images(miss_predictions, save_path):
+    for prediction_type, data in miss_predictions.items():
+
+        images, saliency_map, confidence = data["images"], data["saliency_map"], data["prediction_confidence"]
+        predicted_label, true_label = data['predicted_label'], data['true_label']
+
+        if len(images) > 0:
+
+            if true_label == 'None':
+                true_label = 'Untreated'
+            if predicted_label == 'None':
+                predicted_label = 'Untreated'
+
+            images, saliency_map, confidence = [list(x) for x in
+                                                zip(*sorted(zip(images, saliency_map, confidence), key=lambda x: x[2]))]
+
+            images = [np.moveaxis(x, 0, -1) for x in images]
+
+            images_highconferr = images[-5:]
+            saliency_highconferr = saliency_map[-5:]
+            images_lowconferr = images[:5]
+            saliency_lowconferr = saliency_map[:5]
+
+            # saliency_highconferr = [np.stack((img,img,img),axis=2) for img in saliency_highconferr]
+            # saliency_lowconferr = [np.stack((img,img,img),axis=2) for img in saliency_lowconferr]
+
+            images_highconferr = np.hstack(images_highconferr)
+            saliency_highconferr = np.hstack(saliency_highconferr)
+            images_lowconferr = np.hstack(images_lowconferr)
+            saliency_lowconferr = np.hstack(saliency_lowconferr)
+
+            combined_image = np.concatenate((images_highconferr,
+                                             saliency_highconferr,
+                                             images_lowconferr,
+                                             saliency_lowconferr))
+
+            name_mod = ''.join([word[0] for word in prediction_type.split(" ")])
+            name_mod = '_' + name_mod + '_figs.tif'
+            image_path = save_path + name_mod
+
+            plt.imshow(combined_image)
+            tickmarks = [(combined_image.shape[0] / 4) * 1, (combined_image.shape[0] / 4) * 3]
+            plt.yticks(tickmarks, ["Highest Confidence", "Lowest Confidence"], rotation=90, ha='center',
+                       rotation_mode='anchor', fontsize=8)
+            plt.xticks([])
+            plt.tick_params(axis='y', which='major', pad=20)
+
+            plt.title(f"{prediction_type}. Label: {true_label}, Predicted Label: {predicted_label}", fontsize=10)
+            plt.savefig(image_path, bbox_inches='tight', pad_inches=0, dpi=300)
+            plt.show()
+            plt.close()
+
+def generate_plots(model_data, save_path):
+    antibiotic = model_data["antibiotic"]
+    channel_list = model_data["channel_list"]
+    cm = model_data["confusion_matrix"]
+    num_samples = model_data["num_test_images"]
+
+    test_predictions = model_data["test_predictions"]
+
+    condition = [antibiotic] + channel_list
+    condition = '[' + '-'.join(condition) + ']'
+    classes = ["Untreated", antibiotic]
+
+    cm_path = save_path + "_confusion_matrix.tif"
+    loss_graph_path = save_path + "_loss_graph.tif"
+    accuracy_graph_path = save_path + "_accuracy_graph.tif"
+
+    generate_prediction_images(test_predictions, save_path)
+
+    fig = plot_confusion_matrix(cm, classes, num_samples=num_samples, normalize=True,
+                                title="Confusion Matrix: " + condition,
+                                save_path=cm_path)
+
+    train_loss = model_data["training_loss"]
+    validation_loss = model_data["validation_loss"]
+    train_accuracy = model_data["training_accuracy"]
+    validation_accuracy = model_data["validation_accuracy"]
+
+    plt.plot(train_loss, label="training loss")
+    plt.plot(validation_loss, label="validation loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Binary Cross Entropy Loss")
+    plt.legend(loc="upper right")
+    plt.title("Loss Graph: " + condition)
+    plt.savefig(loss_graph_path, bbox_inches='tight', dpi=300)
+    plt.show()
+    plt.close()
+
+    plt.plot(train_accuracy, label="training accuracy")
+    plt.plot(validation_accuracy, label="validation accuracy")
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy (%)")
+    plt.legend(loc="lower right")
+    plt.title("Accuracy Graph: " + condition)
+    plt.savefig(accuracy_graph_path, bbox_inches='tight', dpi=300)
+    plt.show()
+    plt.close()
 
 class Trainer:
 
@@ -282,7 +422,7 @@ class Trainer:
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()  # learning rate scheduler step
 
-            if self.validation_loss[-1] == np.min(self.validation_loss):
+            if self.validation_accuracy[-1] == np.max(self.validation_accuracy):
                 
                 self.model.eval()
                 
@@ -321,22 +461,25 @@ class Trainer:
         for i, (images, labels) in batch_iter:
             images, labels = images.to(self.device), labels.to(self.device)  # send to device (GPU or CPU)
 
-            self.optimizer.zero_grad()  # zerograd the parameters
-            pred_label = self.model(images)  # one forward pass
+            # checks if any images contains a NaN
+            if not torch.isnan(images).any():
 
-            loss = self.criterion(pred_label, labels)
-            train_losses.append(loss.item())
+                self.optimizer.zero_grad()  # zerograd the parameters
+                pred_label = self.model(images)  # one forward pass
 
-            accuracy = self.correct_predictions(pred_label, labels)
-            train_accuracies.append(accuracy)
+                loss = self.criterion(pred_label, labels)
+                train_losses.append(loss.item())
 
-            loss.backward()  # one backward pass
-            self.optimizer.step()  # update the parameters
+                accuracy = self.correct_predictions(pred_label, labels)
+                train_accuracies.append(accuracy)
 
-            current_lr = self.optimizer.param_groups[0]['lr']
+                loss.backward()  # one backward pass
+                self.optimizer.step()  # update the parameters
 
-            batch_iter.set_description(
-                f'Training: (loss {np.mean(train_losses):.10f}, Acc {np.mean(train_accuracies):.2f} LR {current_lr})')  # update progressbar
+                current_lr = self.optimizer.param_groups[0]['lr']
+
+                batch_iter.set_description(
+                    f'Training: (loss {np.mean(train_losses):.2f}, Acc {np.mean(train_accuracies):.2f} LR {current_lr})')  # update progressbar
 
         self.training_loss.append(np.mean(train_losses))
         self.training_accuracy.append(np.mean(train_accuracies))
@@ -356,19 +499,22 @@ class Trainer:
         for i, (images, labels) in batch_iter:
             images, labels = images.to(self.device), labels.to(self.device)  # send to device (GPU or CPU)
 
-            with torch.no_grad():
-                pred_label = self.model(images)
+            #checks if any images contains a NaN
+            if not torch.isnan(images).any():
 
-                loss = self.criterion(pred_label, labels)
-                valid_losses.append(loss.item())
+                with torch.no_grad():
+                    pred_label = self.model(images)
 
-                accuracy = self.correct_predictions(pred_label, labels)
-                valid_accuracies.append(accuracy)
+                    loss = self.criterion(pred_label, labels)
+                    valid_losses.append(loss.item())
 
-                current_lr = self.optimizer.param_groups[0]['lr']
+                    accuracy = self.correct_predictions(pred_label, labels)
+                    valid_accuracies.append(accuracy)
 
-                batch_iter.set_description(
-                    f'Validation: (loss {np.mean(valid_losses):.10f}, Acc {np.mean(valid_accuracies):.2f} LR {current_lr})')  # update progressbar
+                    current_lr = self.optimizer.param_groups[0]['lr']
+
+                    batch_iter.set_description(
+                        f'Validation: (loss {np.mean(valid_losses):.2f}, Acc {np.mean(valid_accuracies):.2f} LR {current_lr})')  # update progressbar
 
         self.validation_loss.append(np.mean(valid_losses))
         self.validation_accuracy.append(np.mean(valid_accuracies))
@@ -378,7 +524,7 @@ class Trainer:
     def evaluate(self, model, model_path, train_images, test_images, test_labels, num_classes):
         
         model_data = torch.load(model_path)
-        model = model.load_state_dict(model_data['model_state_dict'])
+        self.model.load_state_dict(model_data['model_state_dict'])
 
         self.model.eval()  # evaluation mode
 
@@ -391,44 +537,50 @@ class Trainer:
         progressbar = tqdm.tqdm(range(len(test_images)), desc='Evaluating', position=0, leave=False)
 
         for i, x, y in zip(progressbar, test_images, test_labels):
+
             # Typecasting
             x = torch.from_numpy(x.copy()).float()
             y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
 
-            x = torch.unsqueeze(x, 0)
-            y = torch.unsqueeze(y, 0)
+            if not torch.isnan(x).any():
 
-            image, label = x.to(self.device), y.to(self.device)
-            
-            with torch.no_grad():
-                pred_label = self.model(image)  # send through model/network
+                x = torch.unsqueeze(x, 0)
+                y = torch.unsqueeze(y, 0)
 
-                loss = self.criterion(pred_label, label)
+                image, label = x.to(self.device), y.to(self.device)
 
-                pred_confidences.append(torch.nn.functional.softmax(pred_label, dim=1).tolist())
-                pred_labels.append(pred_label.data.cpu().argmax().numpy().tolist())
-                true_labels.append(label.data.cpu().argmax().numpy().tolist())
-                pred_losses.append(loss.item())
-        
+                with torch.no_grad():
+                    pred_label = self.model(image)  # send through model/network
+
+                    loss = self.criterion(pred_label, label)
+
+                    pred_confidences.append(torch.nn.functional.softmax(pred_label, dim=1).tolist())
+                    pred_labels.append(pred_label.data.cpu().argmax().numpy().tolist())
+                    true_labels.append(label.data.cpu().argmax().numpy().tolist())
+                    pred_losses.append(loss.item())
+
         progressbar = tqdm.tqdm(range(len(test_images)), desc='Generating Saliency Maps', position=0, leave=False)
-        
+
         train_images = torch.from_numpy(np.stack(train_images[:100])).float().to(self.device)
         deep_explainer = shap.DeepExplainer(self.model.eval(), train_images)
-            
+
         for i, x, y in zip(progressbar, test_images, test_labels):
-            
-            x = torch.from_numpy(x.copy()).float()
-            y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
+            try:
+                x = torch.from_numpy(x.copy()).float()
+                y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
 
-            x = torch.unsqueeze(x, 0)
-            y = torch.unsqueeze(y, 0)
+                if not torch.isnan(x).any():
+                    x = torch.unsqueeze(x, 0)
+                    y = torch.unsqueeze(y, 0)
 
-            image, label = x.to(self.device), y.to(self.device)
-        
-            shap_img = generate_shap_image(deep_explainer,image)
-            saliency_maps.append(shap_img)
+                    image, label = x.to(self.device), y.to(self.device)
 
-                
+                    shap_img = generate_shap_image(deep_explainer, image)
+                    saliency_maps.append(shap_img)
+            except:
+                print(traceback.format_exc())
+                pass
+
         accuracy = self.correct_predictions(torch.tensor(true_labels), torch.tensor(pred_labels))
 
         test_predictions = get_image_predictions(test_images,

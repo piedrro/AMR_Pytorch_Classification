@@ -69,11 +69,15 @@ def get_metadata(AKSEG_DIRECTORY, USER_INITIAL,
     akseg_metadata["label_save_path"] = akseg_metadata["label_save_path"].apply(lambda path: update_akseg_paths(path, AKSEG_DIRECTORY, USER_INITIAL))
     
     akseg_metadata = akseg_metadata.drop_duplicates(subset=['akseg_hash'], keep="first")
-    
-    akseg_metadata["file_name"] = akseg_metadata["file_list"]
-    akseg_metadata["channel"] = akseg_metadata["channel_list"]  
-    
-    akseg_metadata = akseg_metadata.explode(["file_name","channel"])
+
+    # I'm not sure the purpose of lines 74-77, it seems redundant
+    #akseg_metadata["file_name"] = akseg_metadata["file_list"]
+    #akseg_metadata["channel"] = akseg_metadata["channel_list"]
+
+    # Solution to explode cannot have lists of different lengths:
+    # https://stackoverflow.com/questions/45885143/pandas-explode-lists-with-different-lengths-into-rows
+    #akseg_metadata = akseg_metadata.explode(["file_name","channel"])
+
     
     if len(channel_list) > 0:
         akseg_metadata = akseg_metadata[akseg_metadata["channel"].isin(channel_list)]
@@ -101,16 +105,16 @@ def get_metadata(AKSEG_DIRECTORY, USER_INITIAL,
         
     if len(test_metadata) > 0:
         
-        test = test_metadata.copy()
+        test = akseg_metadata.copy()
     
-        for key,value in train_metadata.items():
+        for key,value in test_metadata.items():
             
             test = test[test[key] == value]
             
-        test_indices = train.index.values.tolist()
+        test_indices = test.index.values.tolist()
         
         akseg_metadata.loc[akseg_metadata.index.isin(test_indices), "dataset"] = "test"
-    
+
     akseg_metadata = akseg_metadata[akseg_metadata["dataset"] != ""]
     
     akseg_metadata.loc[akseg_metadata["antibiotic"].isin(["",None, np.nan,"None"]), ["antibiotic"]] = "Untreated"
@@ -120,7 +124,7 @@ def get_metadata(AKSEG_DIRECTORY, USER_INITIAL,
         
     if len(microscope_list) > 0:
         akseg_metadata = akseg_metadata[akseg_metadata["microscope"].isin(microscope_list)]
-    
+
     return akseg_metadata
 
 
@@ -255,12 +259,12 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
     file_names = dat["file_list"].iloc[0]
     channels = dat["channel_list"].iloc[0]
     
-    file_dir =  os.path.dirname(dat["image_save_path"].tolist()[0])
+    file_dir = os.path.dirname(dat["image_save_path"].tolist()[0])
     
     dat_antibiotic = dat["antibiotic"].tolist()[0]
     dat_dataset = dat["dataset"].tolist()[0]
     
-    segmentation_file = file_names[channels.index("532")]
+    #segmentation_file = file_names[channels.index("532")]
     
     # creates RGB image from image channel(s)
     
@@ -336,29 +340,23 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
             cell_image_crop[:,cell_mask_crop==0] = 0
             
             cell_image_crop = resize_image(image_size, h, w, cell_image_crop, colicoords, resize)
-            
-            cell_images.append(cell_image_crop)
-            
-            label = antibiotic_list.index(dat_antibiotic)
 
-            cell_labels.append(label)
-            
-            cell_file_names.append(file_name)
-            cell_dataset.append(dat_dataset)
-            
-    #normalise and rescale images
-      
-    for i in range(len(cell_images)):
-        
-        image = cell_images[i]
-        
-        for j in range(image.shape[0]):
-            
-            img = image[j]
-            
-            img = normalize99(img)
-            img = rescale01(img)
-                
+            cell_image_crop = normalize99(cell_image_crop)
+
+            if (np.max(cell_image_crop) - np.min(cell_image_crop)) > 0:
+
+                cell_image_crop = rescale01(cell_image_crop)
+                cell_image_crop = cell_image_crop.astype(np.float32)
+    
+                cell_images.append(cell_image_crop)
+    
+                label = antibiotic_list.index(dat_antibiotic)
+    
+                cell_labels.append(label)
+    
+                cell_file_names.append(file_name)
+                cell_dataset.append(dat_dataset)
+
     return cell_dataset, cell_images, cell_labels, cell_file_names
 
 

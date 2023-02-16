@@ -47,6 +47,8 @@ class load_dataset(data.Dataset):
         mask = img.copy()
         
         #pixel transforms
+        # AF trying var_limit 50 instead of 0.01
+        #A.augmentations.transforms.GaussNoise(var_limit=0.01, per_channel=True),
         transform = A.Compose([A.GaussianBlur(blur_limit=(1, 3), sigma_limit=0, always_apply=False, p=0.5),
                                A.RandomBrightnessContrast(brightness_limit=0.5, contrast_limit=0.5)])
         

@@ -14,26 +14,27 @@ import pickle
 
 image_size = (64,64)
 resize = False
-antibiotic_list = ["Ciprofloxacin"]
-microscope_list = ["BIO-NIM"]
-channel_list = ["532"]
+
+antibiotic_list = ["Untreated", "Ciprofloxacin"]
+microscope_list = ["BIO-NIM", "ScanR"]
+channel_list = ["Cy3"]
 cell_list = ["single"]
-train_metadata = {"segmentation_curated":True}
-test_metadata = {}
+train_metadata = {"content": "E.Coli MG1655", "segmentation_curated":True}
+test_metadata = {"user_meta3": "BioRepB"}
 
 model_backbone = 'densenet121'
 ratio_train = 0.9
 val_test_split = 0.5
 BATCH_SIZE = 100
 LEARNING_RATE = 0.001
-EPOCHS = 10
+EPOCHS = 1
 AUGMENT = True
 
-AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG/"
+AKSEG_DIRECTORY = r"/run/user/26441/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG/"
 
 USER_INITIAL = "AF"
 
-SAVE_DIR = "/home/turnerp/PycharmProjects/AMR_Pytorch_Classification/"
+SAVE_DIR = "/home/farrara/Code/AMR_Pytorch/"
 MODEL_FOLDER_NAME = "AntibioticClassification"
 
 
@@ -44,8 +45,8 @@ if torch.cuda.is_available():
     torch.cuda.empty_cache()
 else:
     device = torch.device('cpu')
-    
-    
+
+
 akseg_metadata = get_metadata(AKSEG_DIRECTORY,
                               USER_INITIAL,
                               channel_list,
@@ -54,27 +55,27 @@ akseg_metadata = get_metadata(AKSEG_DIRECTORY,
                               train_metadata,
                               test_metadata)
 
-
+#
 if __name__ == '__main__':
 
-    # cached_data = cache_data(akseg_metadata,
-    #                           image_size,
-    #                           antibiotic_list,
-    #                           channel_list,
-    #                           cell_list,
-    #                           import_limit = 10,
-    #                           mask_background=True,
-    #                           resize=resize)
+    cached_data = cache_data(akseg_metadata,
+                              image_size,
+                              antibiotic_list,
+                              channel_list,
+                              cell_list,
+                              import_limit = 9999,
+                              mask_background=True,
+                              resize=resize)
 
-    # with open('cacheddata.pickle', 'wb') as handle:
-    #     pickle.dump(cached_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('cacheddata.pickle', 'wb') as handle:
+        pickle.dump(cached_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     with open('cacheddata.pickle', 'rb') as handle:
         cached_data = pickle.load(handle)
-    
+
     num_classes = len(np.unique(cached_data["labels"]))
 
-    train_data, val_data, test_data  = get_training_data(cached_data,
+    train_data, val_data, test_data = get_training_data(cached_data,
                                                           shuffle=True,
                                                           ratio_train = 0.9,
                                                           val_test_split=0.5,
@@ -86,20 +87,17 @@ if __name__ == '__main__':
                                     augment=AUGMENT)
 
     validation_dataset = load_dataset(images = val_data["images"],
-                                      labels = train_data["labels"],
+                                      labels = val_data["labels"],
                                       num_classes = num_classes,
                                       augment=False)
 
     test_dataset = load_dataset(images = test_data["images"],
-                                labels = train_data["labels"],
+                                labels = test_data["labels"],
                                 num_classes = num_classes,
                                 augment=False)
-
-    
     trainloader = data.DataLoader(dataset=training_dataset,
                                   batch_size=BATCH_SIZE,
                                   shuffle=True)
-    
     valoader = data.DataLoader(dataset=validation_dataset,
                                 batch_size=BATCH_SIZE,
                                 shuffle=False)
@@ -136,8 +134,6 @@ if __name__ == '__main__':
 
     model_path = trainer.train()
 
-    model_path = r'/home/farrara/Code/AMR_PyTorch/models/AntibioticClassification_230215_1304/[Ciprofloxacin-Cy3]/AMRClassification_[Ciprofloxacin-Cy3]_230215_1304'
-
     model_data = trainer.evaluate(model,
                                   model_path,
                                   train_data["images"],
@@ -145,24 +141,3 @@ if __name__ == '__main__':
                                   test_data["labels"],
                                   len(antibiotic_list))
     torch.cuda.empty_cache()
-
-    
-    
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
