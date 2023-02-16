@@ -375,82 +375,82 @@ class Trainer:
 
         batch_iter.close()
 
-    # def evaluate(self, model, model_path, train_images, test_images, test_labels, num_classes):
+    def evaluate(self, model, model_path, train_images, test_images, test_labels, num_classes):
         
-    #     model_data = torch.load(model_path)
-    #     model = model.load_state_dict(model_data['model_state_dict'])
+        model_data = torch.load(model_path)
+        model = model.load_state_dict(model_data['model_state_dict'])
 
-        # self.model.eval()  # evaluation mode
+        self.model.eval()  # evaluation mode
 
-        # saliency_maps = []
-        # true_labels = []
-        # pred_labels = []
-        # pred_losses = []
-        # pred_confidences = []
+        saliency_maps = []
+        true_labels = []
+        pred_labels = []
+        pred_losses = []
+        pred_confidences = []
         
-        # progressbar = tqdm.tqdm(range(len(test_images)), desc='Evaluating', position=0, leave=False)
+        progressbar = tqdm.tqdm(range(len(test_images)), desc='Evaluating', position=0, leave=False)
 
-        # for i, x, y in zip(progressbar, test_images, test_labels):
-        #     # Typecasting
-        #     x = torch.from_numpy(x.copy()).float()
-        #     y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
+        for i, x, y in zip(progressbar, test_images, test_labels):
+            # Typecasting
+            x = torch.from_numpy(x.copy()).float()
+            y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
 
-        #     x = torch.unsqueeze(x, 0)
-        #     y = torch.unsqueeze(y, 0)
+            x = torch.unsqueeze(x, 0)
+            y = torch.unsqueeze(y, 0)
 
-        #     image, label = x.to(self.device), y.to(self.device)
+            image, label = x.to(self.device), y.to(self.device)
             
-        #     with torch.no_grad():
-        #         pred_label = self.model(image)  # send through model/network
+            with torch.no_grad():
+                pred_label = self.model(image)  # send through model/network
 
-        #         loss = self.criterion(pred_label, label)
+                loss = self.criterion(pred_label, label)
 
-        #         pred_confidences.append(torch.nn.functional.softmax(pred_label, dim=1).tolist())
-        #         pred_labels.append(pred_label.data.cpu().argmax().numpy().tolist())
-        #         true_labels.append(label.data.cpu().argmax().numpy().tolist())
-        #         pred_losses.append(loss.item())
+                pred_confidences.append(torch.nn.functional.softmax(pred_label, dim=1).tolist())
+                pred_labels.append(pred_label.data.cpu().argmax().numpy().tolist())
+                true_labels.append(label.data.cpu().argmax().numpy().tolist())
+                pred_losses.append(loss.item())
         
-        # progressbar = tqdm.tqdm(range(len(test_images)), desc='Generating Saliency Maps', position=0, leave=False)
+        progressbar = tqdm.tqdm(range(len(test_images)), desc='Generating Saliency Maps', position=0, leave=False)
         
-        # train_images = torch.from_numpy(np.stack(train_images[:100])).float().to(self.device)
-        # deep_explainer = shap.DeepExplainer(self.model.eval(), train_images)
+        train_images = torch.from_numpy(np.stack(train_images[:100])).float().to(self.device)
+        deep_explainer = shap.DeepExplainer(self.model.eval(), train_images)
             
-        # for i, x, y in zip(progressbar, test_images, test_labels):
+        for i, x, y in zip(progressbar, test_images, test_labels):
             
-        #     x = torch.from_numpy(x.copy()).float()
-        #     y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
+            x = torch.from_numpy(x.copy()).float()
+            y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
 
-        #     x = torch.unsqueeze(x, 0)
-        #     y = torch.unsqueeze(y, 0)
+            x = torch.unsqueeze(x, 0)
+            y = torch.unsqueeze(y, 0)
 
-        #     image, label = x.to(self.device), y.to(self.device) 
+            image, label = x.to(self.device), y.to(self.device)
         
-        #     shap_img = generate_shap_image(deep_explainer,image)
-        #     saliency_maps.append(shap_img)
+            shap_img = generate_shap_image(deep_explainer,image)
+            saliency_maps.append(shap_img)
 
                 
-        # accuracy = self.correct_predictions(torch.tensor(true_labels), torch.tensor(pred_labels))   
+        accuracy = self.correct_predictions(torch.tensor(true_labels), torch.tensor(pred_labels))
 
-        # test_predictions = get_image_predictions(test_images,
-        #                                          saliency_maps,
-        #                                          true_labels,pred_labels,
-        #                                          pred_confidences,
-        #                                          self.antibiotic_list)
+        test_predictions = get_image_predictions(test_images,
+                                                 saliency_maps,
+                                                 true_labels,pred_labels,
+                                                 pred_confidences,
+                                                 self.antibiotic_list)
             
-        # cm = confusion_matrix(true_labels, pred_labels, normalize='pred')
+        cm = confusion_matrix(true_labels, pred_labels, normalize='pred')
         
-        # model_data["confusion_matrix"] = cm
-        # model_data["test_labels"] = true_labels
-        # model_data["pred_labels"] = pred_labels
-        # model_data["test_accuracy"] = accuracy
-        # model_data["num_test_images"] = len(test_images)
-        # model_data["test_predictions"] = test_predictions
+        model_data["confusion_matrix"] = cm
+        model_data["test_labels"] = true_labels
+        model_data["pred_labels"] = pred_labels
+        model_data["test_accuracy"] = accuracy
+        model_data["num_test_images"] = len(test_images)
+        model_data["test_predictions"] = test_predictions
         
-        # torch.save(model_data, self.model_path)
+        torch.save(model_data, self.model_path)
         
-        # generate_plots(model_data, self.model_path)
+        generate_plots(model_data, self.model_path)
         
-        return #model_data
+        return model_data
 
 
 def normalize99(X):

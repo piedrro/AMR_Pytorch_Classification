@@ -5,20 +5,18 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 import numpy as np
+from matplotlib import pyplot as plt
 from datetime import datetime
 from trainer import Trainer
 from file_io import get_metadata, get_cell_images, cache_data, get_training_data
 from dataloader import load_dataset
 import pickle
 
-
-
-
 image_size = (64,64)
 resize = False
-antibiotic_list = ["Untreated", "Chloramphenicol"]
+antibiotic_list = ["Ciprofloxacin"]
 microscope_list = ["BIO-NIM"]
-channel_list = ["405","532"]
+channel_list = ["532"]
 cell_list = ["single"]
 train_metadata = {"segmentation_curated":True}
 test_metadata = {}
@@ -26,7 +24,7 @@ test_metadata = {}
 model_backbone = 'densenet121'
 ratio_train = 0.9
 val_test_split = 0.5
-BATCH_SIZE = 10
+BATCH_SIZE = 100
 LEARNING_RATE = 0.001
 EPOCHS = 10
 AUGMENT = True
@@ -106,6 +104,15 @@ if __name__ == '__main__':
                                 batch_size=BATCH_SIZE,
                                 shuffle=False)
 
+    # Preview images
+    # images, labels = next(iter(trainloader))
+    #
+    # for img in images:
+    #
+    #     plt.imshow(img[0])
+    #     plt.show()
+
+
     model = models.densenet121(num_classes=len(antibiotic_list)).to(device)
 
     criterion = nn.CrossEntropyLoss()
@@ -128,6 +135,16 @@ if __name__ == '__main__':
                       model_folder_name = MODEL_FOLDER_NAME)
 
     model_path = trainer.train()
+
+    model_path = r'/home/farrara/Code/AMR_PyTorch/models/AntibioticClassification_230215_1304/[Ciprofloxacin-Cy3]/AMRClassification_[Ciprofloxacin-Cy3]_230215_1304'
+
+    model_data = trainer.evaluate(model,
+                                  model_path,
+                                  train_data["images"],
+                                  test_data["images"],
+                                  test_data["labels"],
+                                  len(antibiotic_list))
+    torch.cuda.empty_cache()
 
     
     
