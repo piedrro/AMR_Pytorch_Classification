@@ -449,7 +449,7 @@ def get_training_data(cached_data, shuffle=True, ratio_train = 0.8, val_test_spl
             data = data.sample(frac=1, random_state=42)
             
         train_indices = data[data["dataset"] == "train"].index.values.tolist()
-        test_indcies = data[data["dataset"] == "test"].index.values.tolist()
+        test_indices = data[data["dataset"] == "test"].index.values.tolist()
         
         
         train_indices, val_indices = train_test_split(train_indices,
@@ -457,7 +457,7 @@ def get_training_data(cached_data, shuffle=True, ratio_train = 0.8, val_test_spl
                                                       random_state=42,
                                                       shuffle=True)
         
-        if len(test_indcies) == 0:
+        if len(test_indices) == 0:
             
             val_indices, test_indices = train_test_split(val_indices,
                                                          train_size=val_test_split,
