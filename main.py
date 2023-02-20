@@ -20,7 +20,7 @@ microscope_list = ["BIO-NIM", "ScanR"]
 channel_list = ["Cy3"]
 cell_list = ["single"]
 train_metadata = {"content": "E.Coli MG1655", "segmentation_curated":True}
-test_metadata = {"user_meta3": "BioRepB"}
+test_metadata = {"content": "E.Coli Clinical", "user_meta1": "L17667"}
 
 model_backbone = 'densenet121'
 ratio_train = 0.9
