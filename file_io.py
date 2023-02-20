@@ -448,7 +448,7 @@ def get_training_data(cached_data, shuffle=True, ratio_train = 0.8, val_test_spl
         if shuffle is True:
             data = data.sample(frac=1, random_state=42)
             
-        train_indcies = data[data["dataset"] == "train"].index.values.tolist()
+        train_indices = data[data["dataset"] == "train"].index.values.tolist()
         test_indcies = data[data["dataset"] == "test"].index.values.tolist()
         
         
