@@ -248,6 +248,7 @@ def generate_prediction_images(miss_predictions, save_path):
             plt.savefig(image_path, bbox_inches='tight', pad_inches=0, dpi=300)
             plt.show()
             plt.close()
+
 def generate_plots(model_data, save_path):
     antibiotic = model_data["antibiotic"]
     channel_list = model_data["channel_list"]
@@ -557,9 +558,9 @@ class Trainer:
                     pred_labels.append(pred_label.data.cpu().argmax().numpy().tolist())
                     true_labels.append(label.data.cpu().argmax().numpy().tolist())
                     pred_losses.append(loss.item())
-        
+
         progressbar = tqdm.tqdm(range(len(test_images)), desc='Generating Saliency Maps', position=0, leave=False)
-        
+
         train_images = torch.from_numpy(np.stack(train_images[:100])).float().to(self.device)
         deep_explainer = shap.DeepExplainer(self.model.eval(), train_images)
 
@@ -569,18 +570,17 @@ class Trainer:
                 y = F.one_hot(torch.tensor(y), num_classes=num_classes).float()
 
                 if not torch.isnan(x).any():
-
                     x = torch.unsqueeze(x, 0)
                     y = torch.unsqueeze(y, 0)
 
                     image, label = x.to(self.device), y.to(self.device)
 
-                    shap_img = generate_shap_image(deep_explainer,image)
+                    shap_img = generate_shap_image(deep_explainer, image)
                     saliency_maps.append(shap_img)
             except:
                 print(traceback.format_exc())
                 pass
-                
+
         accuracy = self.correct_predictions(torch.tensor(true_labels), torch.tensor(pred_labels))
 
         test_predictions = get_image_predictions(test_images,

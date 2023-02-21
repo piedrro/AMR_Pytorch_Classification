@@ -5,23 +5,22 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 import numpy as np
+from matplotlib import pyplot as plt
 from datetime import datetime
 from trainer import Trainer
 from file_io import get_metadata, get_cell_images, cache_data, get_training_data
 from dataloader import load_dataset
 import pickle
 
-
-
-
 image_size = (64,64)
 resize = False
+
 antibiotic_list = ["Untreated", "Ciprofloxacin"]
 microscope_list = ["BIO-NIM", "ScanR"]
 channel_list = ["Cy3"]
 cell_list = ["single"]
 train_metadata = {"content": "E.Coli MG1655", "segmentation_curated":True}
-test_metadata = {"user_meta3": "BioRepB"}
+test_metadata = {"content": "E.Coli Clinical", "user_meta1": "L17667"}
 
 model_backbone = 'densenet121'
 ratio_train = 0.9
@@ -32,7 +31,6 @@ EPOCHS = 1
 AUGMENT = True
 
 AKSEG_DIRECTORY = r"/run/user/26441/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG/"
-AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG"
 
 USER_INITIAL = "AF"
 
@@ -104,6 +102,15 @@ if __name__ == '__main__':
                                 batch_size=BATCH_SIZE,
                                 shuffle=False)
 
+    # Preview images
+    # images, labels = next(iter(trainloader))
+    #
+    # for img in images:
+    #
+    #     plt.imshow(img[0])
+    #     plt.show()
+
+
     model = models.densenet121(num_classes=len(antibiotic_list)).to(device)
 
     criterion = nn.CrossEntropyLoss()
@@ -134,22 +141,3 @@ if __name__ == '__main__':
                                   test_data["labels"],
                                   len(antibiotic_list))
     torch.cuda.empty_cache()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
