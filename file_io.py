@@ -27,6 +27,22 @@ from functools import partial
 import random
 import torch.nn.functional as F
 import pathlib
+from skimage.registration import phase_cross_correlation
+import scipy
+from visualise import normalize99,rescale01
+
+def align_images(images):
+
+    try:
+
+        shift, error, diffphase = phase_cross_correlation(images[0], images[1], upsample_factor=100)
+        images[1] = scipy.ndimage.shift(images[1], shift).astype(np.uint16)
+
+    except:
+        pass
+
+    return images
+
 
 def extract_list(data, mode = "file"):
     
@@ -36,26 +52,51 @@ def extract_list(data, mode = "file"):
 
 def update_akseg_paths(path, AKSEG_DIRECTORY, USER_INITIAL):
     
-    path = pathlib.Path(path.replace("\\","/"))
-    AKSEG_DIRECTORY = pathlib.Path(AKSEG_DIRECTORY)
+    try:
+    
+        path = pathlib.Path(path.replace("\\","/"))
+        AKSEG_DIRECTORY = pathlib.Path(AKSEG_DIRECTORY)
+            
         
-    
-    index = path.parts.index(str(USER_INITIAL))
-    
-    parts = (*AKSEG_DIRECTORY.parts, "Images", *path.parts[index:])
-    path = pathlib.Path('').joinpath(*parts)
+        index = path.parts.index(str(USER_INITIAL))
+        
+        parts = (*AKSEG_DIRECTORY.parts, "Images", *path.parts[index:])
+        path = pathlib.Path('').joinpath(*parts)
+
+    except:
+        path = None
 
     return path
 
 
+def check_channel_list(dat, target_channel_list):
+    
+    channel_list = dat["channel_list"]
+    file_list = dat["file_list"]
+    
+    if set(target_channel_list) <= set(channel_list):
 
-
+        indices = [channel_list.index(value) for value in target_channel_list]
+        
+        file_list = np.take(file_list,indices).tolist()
+        
+        dat['file_list'] = file_list
+        dat['channel_list'] = target_channel_list
+        
+    else:
+        
+        dat["file_list"] = None
+        dat["channel_list"] = None
+        
+        pass
+    
+    return dat
 
 
 
 def get_metadata(AKSEG_DIRECTORY, USER_INITIAL,
                  channel_list, antibiotic_list=[], microscope_list=[],
-                 train_metadata = {}, test_metadata={}):
+                 train_metadata = {}, test_metadata={}, limit = "None"):
 
     path = os.path.join(AKSEG_DIRECTORY,"Images", USER_INITIAL, f"{USER_INITIAL}_file_metadata.txt")
     
@@ -70,84 +111,59 @@ def get_metadata(AKSEG_DIRECTORY, USER_INITIAL,
     
     akseg_metadata = akseg_metadata.drop_duplicates(subset=['akseg_hash'], keep="first")
 
-    # I'm not sure the purpose of lines 74-77, it seems redundant
-    #akseg_metadata["file_name"] = akseg_metadata["file_list"]
-    #akseg_metadata["channel"] = akseg_metadata["channel_list"]
-
-    # Solution to explode cannot have lists of different lengths:
-    # https://stackoverflow.com/questions/45885143/pandas-explode-lists-with-different-lengths-into-rows
-    #akseg_metadata = akseg_metadata.explode(["file_name","channel"])
-
-    
     if len(channel_list) > 0:
-        akseg_metadata = akseg_metadata[akseg_metadata["channel"].isin(channel_list)]
         
+        akseg_metadata = akseg_metadata[akseg_metadata["channel"].isin(channel_list)]
+        akseg_metadata = akseg_metadata.apply(lambda dat: check_channel_list(dat, channel_list), axis=1)
+        akseg_metadata = akseg_metadata[~akseg_metadata["file_list"].isin([None, "None", np.nan])]
+
     akseg_metadata = akseg_metadata.drop_duplicates(["segmentation_file","folder","content"])
-    
+
     akseg_metadata = akseg_metadata[akseg_metadata["segmentation_file"] != "missing image channel"]
-    
+
     akseg_metadata = akseg_metadata[akseg_metadata['channel'].notna()]
     akseg_metadata = akseg_metadata.reset_index(drop=True)
-    
+
     akseg_metadata["dataset"] = ""
-    
+
     if len(train_metadata) > 0:
-        
+
         train = akseg_metadata.copy()
-    
+
         for key,value in train_metadata.items():
-            
+
             train = train[train[key] == value]
-            
+
         train_indices = train.index.values.tolist()
-        
+
         akseg_metadata.loc[akseg_metadata.index.isin(train_indices), "dataset"] = "train"
-        
+
     if len(test_metadata) > 0:
-        
+
         test = akseg_metadata.copy()
-    
+
         for key,value in test_metadata.items():
-            
+
             test = test[test[key] == value]
-            
+
         test_indices = test.index.values.tolist()
-        
+
         akseg_metadata.loc[akseg_metadata.index.isin(test_indices), "dataset"] = "test"
 
     akseg_metadata = akseg_metadata[akseg_metadata["dataset"] != ""]
-    
+
     akseg_metadata.loc[akseg_metadata["antibiotic"].isin(["",None, np.nan,"None"]), ["antibiotic"]] = "Untreated"
-    
+
     if len(antibiotic_list) > 0:
         akseg_metadata = akseg_metadata[akseg_metadata["antibiotic"].isin(antibiotic_list)]
-        
+
     if len(microscope_list) > 0:
         akseg_metadata = akseg_metadata[akseg_metadata["microscope"].isin(microscope_list)]
 
+    if limit != 'None':
+        akseg_metadata = akseg_metadata.sample(frac=1, random_state=42).iloc[:10]
+
     return akseg_metadata
-
-
-
-def normalize99(X):
-    """ normalize image so 0.0 is 0.01st percentile and 1.0 is 99.99th percentile """
-    
-    if np.max(X) > 0:
-        
-        X = X.copy()
-        v_min, v_max = np.percentile(X[X != 0], (1, 99))
-        X = exposure.rescale_intensity(X, in_range=(v_min, v_max))
-        
-    return X
-
-def rescale01(x):
-    """ normalize image from 0 to 1 """
-    
-    if np.max(x) > 0:
-        
-        x = (x - np.min(x)) / (np.max(x) - np.min(x))
-        
-    return x
 
 def import_coco_json(json_path, cell_types):
     
@@ -254,108 +270,117 @@ def get_crop_range(image, image_size, coords):
 
 
 def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
-                    import_limit, colicoords, mask_background, normalise = True, resize=False):
-    
-    file_names = dat["file_list"].iloc[0]
-    channels = dat["channel_list"].iloc[0]
-    
-    file_dir = os.path.dirname(dat["image_save_path"].tolist()[0])
-    
-    dat_antibiotic = dat["antibiotic"].tolist()[0]
-    dat_dataset = dat["dataset"].tolist()[0]
-    
-    #segmentation_file = file_names[channels.index("532")]
-    
-    # creates RGB image from image channel(s)
-    
-    image_channels = []
-    image_data = []
+                    import_limit, colicoords, mask_background, normalise = True, resize=False, align=True):
 
-    for i in range(len(file_names)):
-        
-        file_name = file_names[i]
-        channel = channels[i]
+    try:
 
-        if channel in channel_list:
-            
-            img_path = os.path.abspath(os.path.join(file_dir,file_name))
-            
-            json_path = pathlib.Path(img_path.replace(".tif", ".txt"))
-            index = json_path.parts.index("images")
-            parts = (*json_path.parts[:index], "json", *json_path.parts[index+1:])
-            json_path = pathlib.Path('').joinpath(*parts)
+        file_names = dat["file_list"].iloc[0]
+        channels = dat["channel_list"].iloc[0]
 
-            img = tifffile.imread(img_path)
-            image_data.append(img)
-            image_channels.append(channel)
-            
-            mask, labels = import_coco_json(json_path, cell_list)
-            
-    if len(image_channels) <= 3:
-        rgb = np.zeros((3, image_data[0].shape[0],image_data[0].shape[1]))
-    else:
-        rgb = np.zeros((len(image_channels), image_data[0].shape[0],image_data[0].shape[1]))
+        file_dir = os.path.dirname(dat["image_save_path"].tolist()[0])
 
-    for i in range(len(image_data)):
-        
-        channel = image_channels[i]
-        channel_index = list(channel_list).index(channel)
-        
-        rgb[channel_index,:,:] = image_data[i]
-        
-    # crops images and gets labels
-    
-    cell_dataset = []
-    cell_images = []
-    cell_labels = []
-    cell_dataset = []
-    cell_file_names = []
-    
-    mask_ids = np.unique(mask)
-    
-    if import_limit == 'None' or import_limit > len(mask_ids):
-        import_limit = len(mask_ids)
-    else:
-        import_limit = int(import_limit)
-    
-    for i in range(import_limit):
-        
-        if mask_ids[i] != 0:
+        dat_antibiotic = dat["antibiotic"].tolist()[0]
+        dat_dataset = dat["dataset"].tolist()[0]
 
-            cell_mask = np.zeros(mask.shape, dtype=np.uint8)
-            
-            cell_mask[mask==mask_ids[i]] = 255
-            
-            contours, hierarchy = cv2.findContours(cell_mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
-        
-            cnt = contours[0]
-            
-            x,y,w,h = cv2.boundingRect(cnt)
-            y1,y2,x1,x2 = y,(y+h),x,(x+w)
-            
-            cell_mask_crop = cell_mask[y1:y2,x1:x2]
-        
-            cell_image_crop = rgb[:,y1:y2,x1:x2].copy()
-        
-            cell_image_crop[:,cell_mask_crop==0] = 0
-            
-            cell_image_crop = resize_image(image_size, h, w, cell_image_crop, colicoords, resize)
+        #segmentation_file = file_names[channels.index("532")]
 
-            cell_image_crop = normalize99(cell_image_crop)
+        # creates RGB image from image channel(s)
 
-            if (np.max(cell_image_crop) - np.min(cell_image_crop)) > 0:
+        image_channels = []
+        image_data = []
 
-                cell_image_crop = rescale01(cell_image_crop)
-                cell_image_crop = cell_image_crop.astype(np.float32)
-    
-                cell_images.append(cell_image_crop)
-    
-                label = antibiotic_list.index(dat_antibiotic)
-    
-                cell_labels.append(label)
-    
-                cell_file_names.append(file_name)
-                cell_dataset.append(dat_dataset)
+        for i in range(len(file_names)):
+
+            file_name = file_names[i]
+            channel = channels[i]
+
+            if channel in channel_list:
+
+                img_path = os.path.abspath(os.path.join(file_dir,file_name))
+
+                json_path = pathlib.Path(img_path.replace(".tif", ".txt"))
+                index = json_path.parts.index("images")
+                parts = (*json_path.parts[:index], "json", *json_path.parts[index+1:])
+                json_path = pathlib.Path('').joinpath(*parts)
+
+                img = tifffile.imread(img_path)
+                image_data.append(img)
+                image_channels.append(channel)
+
+                mask, labels = import_coco_json(json_path, cell_list)
+
+        if align:
+            image_data = align_images(image_data)
+
+        if len(image_channels) <= 3:
+            rgb = np.zeros((3, image_data[0].shape[0],image_data[0].shape[1]))
+        else:
+            rgb = np.zeros((len(image_channels), image_data[0].shape[0],image_data[0].shape[1]))
+
+        for i in range(len(image_data)):
+
+            channel = image_channels[i]
+            channel_index = list(channel_list).index(channel)
+
+            rgb[channel_index,:,:] = image_data[i]
+
+        # crops images and gets labels
+
+        cell_dataset = []
+        cell_images = []
+        cell_labels = []
+        cell_dataset = []
+        cell_file_names = []
+
+        mask_ids = np.unique(mask)
+
+        if import_limit == 'None' or import_limit > len(mask_ids):
+            import_limit = len(mask_ids)
+        else:
+            import_limit = int(import_limit)
+
+        for i in range(import_limit):
+
+            if mask_ids[i] != 0:
+
+                cell_mask = np.zeros(mask.shape, dtype=np.uint8)
+
+                cell_mask[mask==mask_ids[i]] = 255
+
+                contours, hierarchy = cv2.findContours(cell_mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+
+                cnt = contours[0]
+
+                x,y,w,h = cv2.boundingRect(cnt)
+                y1,y2,x1,x2 = y,(y+h),x,(x+w)
+
+                cell_mask_crop = cell_mask[y1:y2,x1:x2]
+
+                cell_image_crop = rgb[:,y1:y2,x1:x2].copy()
+
+                if mask_background:
+                    cell_image_crop[:,cell_mask_crop==0] = 0
+
+                cell_image_crop = resize_image(image_size, h, w, cell_image_crop, colicoords, resize)
+
+                cell_image_crop = normalize99(cell_image_crop)
+
+                if (np.max(cell_image_crop) - np.min(cell_image_crop)) > 0:
+
+                    cell_image_crop = rescale01(cell_image_crop)
+                    cell_image_crop = cell_image_crop.astype(np.float32)
+
+                    cell_images.append(cell_image_crop)
+
+                    label = antibiotic_list.index(dat_antibiotic)
+
+                    cell_labels.append(label)
+
+                    cell_file_names.append(file_name)
+                    cell_dataset.append(dat_dataset)
+    except:
+        cell_dataset, cell_images, cell_labels, cell_file_names = [],[],[],[]
+        print(traceback.format_exc())
 
     return cell_dataset, cell_images, cell_labels, cell_file_names
 
@@ -372,7 +397,7 @@ def cache_data(data, image_size, antibiotic_list, channel_list, cell_list,
     
     print(f"loading {len(data)} images from AKGROUP into memory with image channels: {channel_list}")
 
-    with Pool(30) as pool:
+    with Pool(2) as pool:
         
         results = pool.map(partial(get_cell_images,
                                     image_size=image_size,
@@ -385,7 +410,7 @@ def cache_data(data, image_size, antibiotic_list, channel_list, cell_list,
                                     resize=resize), data)
         
         dataset, images, labels, file_names = zip(*results)
-        
+
         dataset = [item for sublist in dataset for item in sublist]
         images = [item for sublist in images for item in sublist]
         labels = [item for sublist in labels for item in sublist]
