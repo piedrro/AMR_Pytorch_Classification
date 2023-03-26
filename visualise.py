@@ -50,6 +50,7 @@ def rescale01(X):
 
 
 def get_image_predictions(images, saliency, test_labels, pred_labels, pred_confidences, antibiotic_list):
+
     images_TP = []
     images_TN = []
     images_FP = []
@@ -80,32 +81,40 @@ def get_image_predictions(images, saliency, test_labels, pred_labels, pred_confi
         pred_label = pred_labels[i]
 
         if test_label == 1 and pred_label == 1:
-            images_TP.append(images[i])
-            saliency_TP.append(saliency[i])
-            label_TP = antibiotic_list[test_label]
-            predicted_label_TP = antibiotic_list[pred_label]
-            confidence_TP.append(pred_confidences[i][0][pred_label])
+            if pred_confidences[i] not in confidence_TP:
+                images_TP.append(images[i])
+                saliency_TP.append(saliency[i])
+
+                label_TP = antibiotic_list[test_label]
+                predicted_label_TP = antibiotic_list[pred_label]
+                confidence_TP.append(pred_confidences[i])
 
         if test_label == 0 and pred_label == 0:
-            images_TN.append(images[i])
-            saliency_TN.append(saliency[i])
-            label_TN = antibiotic_list[test_label]
-            predicted_label_TN = antibiotic_list[pred_label]
-            confidence_TN.append(pred_confidences[i][0][pred_label])
+            if pred_confidences[i] not in confidence_TN:
+                images_TN.append(images[i])
+                saliency_TN.append(saliency[i])
+
+                label_TN = antibiotic_list[test_label]
+                predicted_label_TN = antibiotic_list[pred_label]
+                confidence_TN.append(pred_confidences[i])
 
         if test_label == 0 and pred_label == 1:
-            images_FP.append(images[i])
-            saliency_FP.append(saliency[i])
-            label_FP = antibiotic_list[test_label]
-            predicted_label_FP = antibiotic_list[pred_label]
-            confidence_FP.append(pred_confidences[i][0][pred_label])
+            if pred_confidences[i] not in confidence_FP:
+                images_FP.append(images[i])
+                saliency_FP.append(saliency[i])
+
+                label_FP = antibiotic_list[test_label]
+                predicted_label_FP = antibiotic_list[pred_label]
+                confidence_FP.append(pred_confidences[i])
 
         if test_label == 1 and pred_label == 0:
-            images_FN.append(images[i])
-            saliency_FN.append(saliency[i])
-            label_FN = antibiotic_list[test_label]
-            predicted_label_FN = antibiotic_list[pred_label]
-            confidence_FN.append(pred_confidences[i][0][pred_label])
+            if pred_confidences[i] not in confidence_FN:
+                images_FN.append(images[i])
+                saliency_FN.append(saliency[i])
+
+                label_FN = antibiotic_list[test_label]
+                predicted_label_FN = antibiotic_list[pred_label]
+                confidence_FN.append(pred_confidences[i])
 
     miss_predictions = {}
 
@@ -117,6 +126,7 @@ def get_image_predictions(images, saliency, test_labels, pred_labels, pred_confi
         images_FP, saliency_FP, confidence_FP = [list(x) for x in zip(*sorted(zip(images_FP, saliency_FP, confidence_FP), key=lambda x: x[2]))]
     if len(images_FN):
         images_FN, saliency_FN, confidence_FN = [list(x) for x in zip(*sorted(zip(images_FN, saliency_FN, confidence_FN), key=lambda x: x[2]))]
+
 
     miss_predictions["True Positives"] = {"images": images_TP, "saliency_map": saliency_TP, "true_label": label_TP, "predicted_label": predicted_label_TP, "prediction_confidence": confidence_TP}
 
@@ -228,7 +238,10 @@ def process_image(img):
 
 
 def generate_prediction_images(miss_predictions, save_path):
+
     for prediction_type, data in miss_predictions.items():
+
+
         images, saliency_map, confidence = data["images"], data["saliency_map"], data["prediction_confidence"]
         predicted_label, true_label = data['predicted_label'], data['true_label']
 
@@ -271,6 +284,7 @@ def generate_prediction_images(miss_predictions, save_path):
 
 
 def generate_plots(model_data, save_path):
+
     antibiotic = model_data["antibiotic"]
     channel_list = model_data["channel_list"]
     cm = model_data["confusion_matrix"]

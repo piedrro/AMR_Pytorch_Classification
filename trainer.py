@@ -94,7 +94,7 @@ class Trainer:
 
         self.training_dataset = load_dataset(images=train_data["images"], labels=train_data["labels"], num_classes=self.num_classes, augment=self.augmentation)
         self.validation_dataset = load_dataset(images=val_data["images"], labels=val_data["labels"], num_classes=self.num_classes, augment=False)
-        self.test_dataset = load_dataset(images=test_data["images"][:10], labels=test_data["labels"][:10], num_classes=self.num_classes, augment=False)
+        self.test_dataset = load_dataset(images=test_data["images"], labels=test_data["labels"], num_classes=self.num_classes, augment=False)
 
         self.criterion = nn.CrossEntropyLoss()
         self.learning_rate_values = []
@@ -395,6 +395,7 @@ class Trainer:
 
         batch_iter.close()
 
+
     def evaluate(self, model_path):
         
         model_data = torch.load(model_path)
@@ -415,8 +416,6 @@ class Trainer:
 
         self.model.to(self.device)
 
-        from torch.autograd import Variable
-
         for i, (image, label) in batch_iter:
 
             try:
@@ -435,7 +434,7 @@ class Trainer:
                     # Backward pass to get gradients
                     one_hot = torch.zeros(1, outputs.size()[-1])
                     one_hot[0, predicted] = 1
-                    outputs.backward(gradient=one_hot.to(self.device))
+                    outputs.backward(gradient=label)
 
                     # Get the gradients of the input image
                     gradients = image.grad.data.squeeze().cpu().numpy()
@@ -449,16 +448,29 @@ class Trainer:
                     saliency_maps.append(saliency_map)
 
                     plot_image = process_image(plot_image)
-                    test_images.append(plot_image)
 
-                    pred_confidences.append(torch.nn.functional.softmax(pred_label, dim=1).tolist())
-                    pred_labels.append(pred_label.data.cpu().argmax().numpy().tolist())
-                    true_labels.append(label.data.cpu().argmax().numpy().tolist())
+                    pred_confidence = torch.nn.functional.softmax(pred_label, dim=1).tolist()[0]
+                    pred_label = pred_label.data.cpu().argmax().numpy().tolist()
+                    true_label = label.data.cpu().argmax().numpy().tolist()
+
+                    test_images.append(plot_image)
+                    pred_labels.append(pred_label)
+                    true_labels.append(true_label)
+                    pred_confidences.append(pred_confidence[pred_label])
                     pred_losses.append(loss.item())
 
             except:
                 print(traceback.format_exc())
                 pass
+
+
+
+        # import pickle
+        # with open('eval.pickle', 'wb') as handle:
+        #     pickle.dump([test_images,saliency_maps,true_labels,pred_labels,pred_losses,pred_confidences], handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # with open('eval.pickle', 'rb') as handle:
+        #     [test_images,saliency_maps,true_labels,pred_labels,pred_losses,pred_confidences] = pickle.load(handle)
 
         accuracy = self.correct_predictions(torch.tensor(true_labels), torch.tensor(pred_labels))
 

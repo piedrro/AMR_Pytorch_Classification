@@ -161,7 +161,7 @@ def get_metadata(AKSEG_DIRECTORY, USER_INITIAL,
         akseg_metadata = akseg_metadata[akseg_metadata["microscope"].isin(microscope_list)]
 
     if limit != 'None':
-        akseg_metadata = akseg_metadata.sample(frac=1, random_state=42).iloc[:10]
+        akseg_metadata = akseg_metadata.sample(frac=1, random_state=42).iloc[:limit]
 
     return akseg_metadata
 
@@ -331,6 +331,7 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
         cell_labels = []
         cell_dataset = []
         cell_file_names = []
+        cell_mask_id = []
 
         mask_ids = np.unique(mask)
 
@@ -378,11 +379,12 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
 
                     cell_file_names.append(file_name)
                     cell_dataset.append(dat_dataset)
+                    cell_mask_id.append(mask_ids[i])
     except:
-        cell_dataset, cell_images, cell_labels, cell_file_names = [],[],[],[]
+        cell_dataset, cell_images, cell_labels, cell_file_namesm, mask_ids = [],[],[],[],[]
         print(traceback.format_exc())
 
-    return cell_dataset, cell_images, cell_labels, cell_file_names
+    return cell_dataset, cell_images, cell_labels, cell_file_names, cell_mask_id
 
 
 
@@ -409,18 +411,20 @@ def cache_data(data, image_size, antibiotic_list, channel_list, cell_list,
                                     mask_background = mask_background,
                                     resize=resize), data)
         
-        dataset, images, labels, file_names = zip(*results)
+        dataset, images, labels, file_names, mask_ids = zip(*results)
 
         dataset = [item for sublist in dataset for item in sublist]
         images = [item for sublist in images for item in sublist]
         labels = [item for sublist in labels for item in sublist]
         file_names = [item for sublist in file_names for item in sublist]
+        mask_ids = [item for sublist in mask_ids for item in sublist]
 
     cached_data = dict(dataset=dataset,
                         images=images,
                         labels=labels,
                         file_names=file_names,
-                        antibiotic_list = antibiotic_list)
+                        antibiotic_list = antibiotic_list,
+                        mask_ids = mask_ids)
      
     return cached_data
 
@@ -449,7 +453,13 @@ def limit_train_data(train_data, num_files):
     return train_data
 
 
-def get_training_data(cached_data, shuffle=True, ratio_train = 0.8, val_test_split=0.5, label_limit = "None"):
+
+
+
+
+
+
+def get_training_data(cached_data, shuffle=True, ratio_train = 0.8, val_test_split=0.5, label_limit = "None", balance = False):
 
     label_names = cached_data.pop("antibiotic_list")
 
@@ -462,14 +472,16 @@ def get_training_data(cached_data, shuffle=True, ratio_train = 0.8, val_test_spl
     dataset = cached_data["dataset"]
     train_indices = np.argwhere(np.array(dataset)=="train")[:,0].tolist()
     test_indices = np.argwhere(np.array(dataset)=="test")[:,0].tolist()
-    
+
+    overlap = list(set(train_indices) & set(test_indices))
+
     data_sort = pd.DataFrame(cached_data).drop(labels = ["images"], axis=1)
     data_sort = data_sort.groupby(["labels"])
     
     for i in range(len(data_sort)):
     
         data = data_sort.get_group(list(data_sort.groups)[i])
-        
+
         if shuffle is True:
             data = data.sample(frac=1, random_state=42)
             
@@ -488,6 +500,8 @@ def get_training_data(cached_data, shuffle=True, ratio_train = 0.8, val_test_spl
                                                          train_size=val_test_split,
                                                          random_state=42,
                                                          shuffle=True)
+
+        overlap = list(set(train_indices) & set(val_indices) & set(test_indices))
 
         for key,value in cached_data.items():
     
@@ -526,16 +540,41 @@ def get_training_data(cached_data, shuffle=True, ratio_train = 0.8, val_test_spl
         train_data = shuffle_train_data(train_data)    
         val_data = shuffle_train_data(val_data)
         test_data = shuffle_train_data(test_data)
-                  
+
+    if balance == True:
+        print("balancing train/val/test datasets")
+        train_data = balance_dataset(train_data)
+        val_data = balance_dataset(val_data)
+        test_data = balance_dataset(test_data)
+
     train_data["antibiotic_list"] = label_names
     val_data["antibiotic_list"] = label_names
     test_data["antibiotic_list"] = label_names
-    
+
     return train_data, val_data, test_data  
 
 
+def balance_dataset(dataset):
 
+    data_sort = dataset["labels"]
+    unique, counts = np.unique(data_sort, return_counts=True)
 
+    max_count = np.min(counts)
+
+    balanced_dataset = {}
+
+    for unique_key in unique:
+
+        unique_indices = np.argwhere(np.array(data_sort) == unique_key)[:,0].tolist()[:max_count]
+
+        for key, value in dataset.items():
+
+            if key not in balanced_dataset.keys():
+                    balanced_dataset[key] = []
+
+            balanced_dataset[key].extend([value[index] for index in unique_indices])
+
+    return balanced_dataset
 
 
 
