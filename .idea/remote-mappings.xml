@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteMappingsManager">
+    <list>
+      <list>
+        <remote-mappings server-id="python@sftp://turnerp@localhost:6000/home/turnerp/anaconda3/envs/AMR_AF_Ribosome_Classification/bin/python" />
+      </list>
+    </list>
+  </component>
+</project>

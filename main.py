@@ -56,18 +56,18 @@ akseg_metadata = get_metadata(AKSEG_DIRECTORY,
 
 if __name__ == '__main__':
 
-    cached_data = cache_data(
-        akseg_metadata,
-        image_size,
-        antibiotic_list,
-        channel_list,
-        cell_list,
-        import_limit = 'None',
-        mask_background=True,
-        resize=resize)
-
-    with open('cacheddata.pickle', 'wb') as handle:
-        pickle.dump(cached_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    # cached_data = cache_data(
+    #     akseg_metadata,
+    #     image_size,
+    #     antibiotic_list,
+    #     channel_list,
+    #     cell_list,
+    #     import_limit = 'None',
+    #     mask_background=True,
+    #     resize=resize)
+    #
+    # with open('cacheddata.pickle', 'wb') as handle:
+    #     pickle.dump(cached_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     with open('cacheddata.pickle', 'rb') as handle:
         cached_data = pickle.load(handle)
@@ -102,10 +102,12 @@ if __name__ == '__main__':
                       batch_size = BATCH_SIZE,
                       model_folder_name = MODEL_FOLDER_NAME)
 
-    trainer.visualise_augmentations()
+    # trainer.visualise_augmentations()
+    #
+    # trainer.tune_hyperparameters(num_trials=50, num_images = 5000, num_epochs = 10)
+    #
+    # model_path = trainer.train()
 
-    trainer.tune_hyperparameters(num_trials=50, num_images = 5000, num_epochs = 10)
-
-    model_path = trainer.train()
+    model_path = r"/home/turnerp/PycharmProjects/AMR_Pytorch_Classification/models/AntibioticClassification_230324_1832/[Ciprofloxacin-532-405]/AMRClassification_[Ciprofloxacin-532-405]_230324_1832"
 
     trainer.evaluate(model_path)

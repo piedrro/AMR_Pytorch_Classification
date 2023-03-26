@@ -94,7 +94,7 @@ class Trainer:
 
         self.training_dataset = load_dataset(images=train_data["images"], labels=train_data["labels"], num_classes=self.num_classes, augment=self.augmentation)
         self.validation_dataset = load_dataset(images=val_data["images"], labels=val_data["labels"], num_classes=self.num_classes, augment=False)
-        self.test_dataset = load_dataset(images=test_data["images"], labels=test_data["labels"], num_classes=self.num_classes, augment=False)
+        self.test_dataset = load_dataset(images=test_data["images"][:10], labels=test_data["labels"][:10], num_classes=self.num_classes, augment=False)
 
         self.criterion = nn.CrossEntropyLoss()
         self.learning_rate_values = []
@@ -415,13 +415,15 @@ class Trainer:
 
         self.model.to(self.device)
 
+        from torch.autograd import Variable
+
         for i, (image, label) in batch_iter:
 
             try:
 
-                image, label = image.to(self.device), label.to(self.device)  # send to device (GPU or CPU)
-
                 if not torch.isnan(image).any():
+
+                    image, label = image.to(self.device), label.to(self.device)  # send to device (GPU or CPU)
 
                     image.requires_grad = True
 
@@ -442,12 +444,8 @@ class Trainer:
                     plot_image = image.squeeze().cpu().detach().numpy()
 
                     saliency_map = rescale01(saliency_map)
-                    saliency_map = saliency_map * 255
-                    saliency_map = saliency_map.astype(np.uint8)
 
                     saliency_map = cv2.cvtColor(saliency_map, cv2.COLOR_GRAY2RGB)
-                    saliency_map = rescale01(saliency_map)
-
                     saliency_maps.append(saliency_map)
 
                     plot_image = process_image(plot_image)
@@ -459,7 +457,7 @@ class Trainer:
                     pred_losses.append(loss.item())
 
             except:
-                # print(traceback.format_exc())
+                print(traceback.format_exc())
                 pass
 
         accuracy = self.correct_predictions(torch.tensor(true_labels), torch.tensor(pred_labels))
