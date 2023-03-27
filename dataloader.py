@@ -30,11 +30,23 @@ class load_dataset(data.Dataset):
     def augment_images(self, img):
 
         from albumentations.augmentations.blur.transforms import Blur
-        from albumentations.augmentations.transforms import RGBShift, GaussNoise
+        from albumentations.augmentations.transforms import RGBShift, GaussNoise, PixelDropout, ChannelShuffle
         from albumentations import RandomBrightnessContrast, RandomRotate90, Flip, Affine
         
         """applies albumentations augmentation to image and mask, including resizing the images/mask to the crop_size"""
-        
+
+
+        shift_channels = A.Compose([Affine(translate_px=[-5,5])])
+
+        mask = img[0].copy()
+
+        for i, chan in enumerate(img):
+            if i != 0:
+                chan = shift_channels(image=chan)['image']
+                chan[mask==0] = 0
+                img[i] = chan
+
+
         img = np.moveaxis(img,0,-1)
 
         # geometric transforms
@@ -52,13 +64,14 @@ class load_dataset(data.Dataset):
             GaussNoise(var_limit=0.0005, per_channel=True, always_apply=False),
             Blur(blur_limit=5, always_apply=False, p=0.5),
             RandomBrightnessContrast(brightness_limit=0.05, contrast_limit=0.5, always_apply=False),
+            PixelDropout(dropout_prob=0.05, per_channel=True, p=0.5),
         ])
 
         img = transform(image=img)['image']
         img[mask==0] = 0
-                
+
         img = np.moveaxis(img,-1,0)
-        
+
         return img
 
 

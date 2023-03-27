@@ -8,7 +8,6 @@ from file_io import get_metadata, get_training_data, cache_data
 import pickle
 
 
-
 image_size = (64,64)
 resize = False
 antibiotic_list = ["Untreated", "Ciprofloxacin"]
@@ -23,9 +22,9 @@ model_backbone = 'efficientnet_b0'
 
 ratio_train = 0.9
 val_test_split = 0.5
-BATCH_SIZE = 13
+BATCH_SIZE = 10
 LEARNING_RATE = 0.01
-EPOCHS = 100
+EPOCHS = 10
 AUGMENT = True
 
 AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG"
@@ -51,7 +50,7 @@ akseg_metadata = get_metadata(AKSEG_DIRECTORY,
                               antibiotic_list,
                               microscope_list,
                               train_metadata,
-                              test_metadata)
+                              test_metadata,)
 
 
 if __name__ == '__main__':
@@ -66,11 +65,11 @@ if __name__ == '__main__':
         mask_background=True,
         resize=resize)
 
-    # with open('cacheddata.pickle', 'wb') as handle:
-    #     pickle.dump(cached_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('cacheddata.pickle', 'wb') as handle:
+        pickle.dump(cached_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # with open('cacheddata.pickle', 'rb') as handle:
-    #     cached_data = pickle.load(handle)
+    with open('cacheddata.pickle', 'rb') as handle:
+        cached_data = pickle.load(handle)
 
     num_classes = len(np.unique(cached_data["labels"]))
 
@@ -83,12 +82,11 @@ if __name__ == '__main__':
                                                           label_limit = 'None',
                                                           balance = True,)
 
-
     print(f"train_data: {len(train_data['images'])}, val_data: {len(val_data['images'])}, test_data: {len(test_data['images'])}")
     #
     model = timm.create_model(model_backbone, pretrained=True, num_classes=len(antibiotic_list)).to(device)
-    # # 'timm.list_models()' to list available models
-    #
+    # 'timm.list_models()' to list available models
+
     trainer = Trainer(model=model,
                       num_classes=num_classes,
                       augmentation=AUGMENT,
@@ -104,12 +102,15 @@ if __name__ == '__main__':
                       batch_size = BATCH_SIZE,
                       model_folder_name = MODEL_FOLDER_NAME)
 
-    trainer.visualise_augmentations()
+    trainer.plot_descriptive_dataset_stats(show_plots=False, save_plots=True)
 
-    trainer.tune_hyperparameters(num_trials=50, num_images = 5000, num_epochs = 10)
+    trainer.visualise_augmentations(n_examples=10, show_plots=False, save_plots=True)
+
+    trainer.tune_hyperparameters(num_trials=50, num_images = 2000, num_epochs = 10)
 
     model_path = trainer.train()
 
     trainer.evaluate(model_path)
 
     # model_path = r"models/AntibioticClassification_230324_1832/[Ciprofloxacin-532-405]/AMRClassification_[Ciprofloxacin-532-405]_230324_1832"
+

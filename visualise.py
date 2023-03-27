@@ -8,7 +8,11 @@ import matplotlib.pyplot as plt
 import io
 from sklearn.metrics import balanced_accuracy_score
 import shap
-
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import pathlib
+import os
 
 def normalize99(X):
     """ normalize image so 0.0 is 0.01st percentile and 1.0 is 99.99th percentile """
@@ -237,7 +241,7 @@ def process_image(img):
     return img
 
 
-def generate_prediction_images(miss_predictions, save_path):
+def generate_prediction_images(miss_predictions, model_dir):
 
     for prediction_type, data in miss_predictions.items():
 
@@ -268,8 +272,11 @@ def generate_prediction_images(miss_predictions, save_path):
             combined_image = np.concatenate((images_highconferr, saliency_highconferr, images_lowconferr, saliency_lowconferr))
 
             name_mod = ''.join([word[0] for word in prediction_type.split(" ")])
-            name_mod = '_' + name_mod + '_figs.tif'
-            image_path = save_path + name_mod
+            name_mod = name_mod + '_figs.tif'
+
+            plot_save_path = pathlib.Path('').joinpath(*model_dir.parts, "test_prediction_images", name_mod)
+            if not os.path.exists(os.path.dirname(plot_save_path)):
+                os.makedirs(os.path.dirname(plot_save_path))
 
             plt.imshow(combined_image)
             tickmarks = [(combined_image.shape[0] / 4) * 1, (combined_image.shape[0] / 4) * 3]
@@ -278,12 +285,12 @@ def generate_prediction_images(miss_predictions, save_path):
             plt.tick_params(axis='y', which='major', pad=20)
 
             plt.title(f"{prediction_type}. Label: {true_label}, Predicted Label: {predicted_label}", fontsize=10)
-            plt.savefig(image_path, bbox_inches='tight', pad_inches=0, dpi=300)
+            plt.savefig(plot_save_path, bbox_inches='tight', pad_inches=0, dpi=300)
             plt.show()
             plt.close()
 
 
-def generate_plots(model_data, save_path):
+def generate_plots(model_data, save_path, model_directory):
 
     antibiotic = model_data["antibiotic"]
     channel_list = model_data["channel_list"]
@@ -301,9 +308,7 @@ def generate_plots(model_data, save_path):
     loss_graph_path = save_path + "_loss_graph.tif"
     accuracy_graph_path = save_path + "_accuracy_graph.tif"
 
-    generate_prediction_images(test_predictions, save_path)
-
-    fig = plot_confusion_matrix(true_labels, pred_labels, classes, num_samples=num_samples, normalize=True, title="Confusion Matrix: " + condition, save_path=cm_path)
+    plot_confusion_matrix(true_labels, pred_labels, classes, num_samples=num_samples, normalize=True, title="Confusion Matrix: " + condition, save_path=cm_path)
 
     train_loss = model_data["training_loss"]
     validation_loss = model_data["validation_loss"]
@@ -329,3 +334,45 @@ def generate_plots(model_data, save_path):
     plt.savefig(accuracy_graph_path, bbox_inches='tight', dpi=300)
     plt.show()
     plt.close()
+
+    generate_prediction_images(test_predictions, model_directory)
+    plot_test_stat_correlations(model_data, model_directory)
+
+
+def plot_test_stat_correlations(model_data, model_dir):
+
+    test_stats = model_data["test_stats"]
+    test_labels = model_data["test_labels"]
+    pred_confidences = model_data["pred_confidences"]
+
+    if "antibiotic_list" in model_data.keys():
+        label_names = model_data["antibiotic_list"]
+    else:
+        label_names = np.unique(test_labels)
+
+    for stat_name in test_stats[0].keys():
+
+        model_dir = pathlib.Path(model_dir)
+
+        plot_save_path = pathlib.Path('').joinpath(*model_dir.parts, "test_stat_correlations", f"{stat_name}_distribution.tif")
+        if not os.path.exists(os.path.dirname(plot_save_path)):
+            os.makedirs(os.path.dirname(plot_save_path))
+
+        fig, ax = plt.subplots()
+
+        for label in np.unique(test_labels):
+            label_indices = np.where(test_labels == label)[0]
+
+            plot_confidences = np.take(pred_confidences, label_indices)
+            plot_stats = [dat[stat_name] for dat in np.take(test_stats, label_indices)]
+
+            ax.scatter(plot_stats, plot_confidences, label=label_names[label])
+            ax.set_xlabel(stat_name)
+            ax.set_ylabel('Prediction Confidence')
+
+        plt.legend(loc='lower right')
+        plt.tight_layout()
+        plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
+        plt.show()
+        plt.close()
+

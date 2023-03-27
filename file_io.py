@@ -30,6 +30,8 @@ import pathlib
 from skimage.registration import phase_cross_correlation
 import scipy
 from visualise import normalize99,rescale01
+from stats import get_stats
+
 
 def align_images(images):
 
@@ -332,6 +334,7 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
         cell_dataset = []
         cell_file_names = []
         cell_mask_id = []
+        cell_statistics = []
 
         mask_ids = np.unique(mask)
 
@@ -359,6 +362,8 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
 
                 cell_image_crop = rgb[:,y1:y2,x1:x2].copy()
 
+                stats = get_stats(image_channels, rgb, mask, cell_mask, cell_image_crop, cell_mask_crop, cnt)
+
                 if mask_background:
                     cell_image_crop[:,cell_mask_crop==0] = 0
 
@@ -380,11 +385,12 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
                     cell_file_names.append(file_name)
                     cell_dataset.append(dat_dataset)
                     cell_mask_id.append(mask_ids[i])
+                    cell_statistics.append(stats)
     except:
-        cell_dataset, cell_images, cell_labels, cell_file_namesm, mask_ids = [],[],[],[],[]
+        cell_dataset, cell_images, cell_labels, cell_file_namesm, mask_ids, mask_ids = [],[],[],[],[], []
         print(traceback.format_exc())
 
-    return cell_dataset, cell_images, cell_labels, cell_file_names, cell_mask_id
+    return cell_dataset, cell_images, cell_labels, cell_file_names, cell_mask_id, cell_statistics
 
 
 
@@ -411,20 +417,22 @@ def cache_data(data, image_size, antibiotic_list, channel_list, cell_list,
                                     mask_background = mask_background,
                                     resize=resize), data)
         
-        dataset, images, labels, file_names, mask_ids = zip(*results)
+        dataset, images, labels, file_names, mask_ids, stats = zip(*results)
 
         dataset = [item for sublist in dataset for item in sublist]
         images = [item for sublist in images for item in sublist]
         labels = [item for sublist in labels for item in sublist]
         file_names = [item for sublist in file_names for item in sublist]
         mask_ids = [item for sublist in mask_ids for item in sublist]
+        stats = [item for sublist in stats for item in sublist]
 
     cached_data = dict(dataset=dataset,
                         images=images,
                         labels=labels,
                         file_names=file_names,
                         antibiotic_list = antibiotic_list,
-                        mask_ids = mask_ids)
+                        mask_ids = mask_ids,
+                        stats = stats)
      
     return cached_data
 

@@ -5,7 +5,7 @@ Created on Wed Feb  9 14:23:14 2022
 @author: turnerp
 """
 import traceback
-
+import seaborn as sns
 import numpy as np
 import torch
 import tqdm
@@ -35,6 +35,7 @@ import cv2
 import tifffile
 from sklearn.metrics import balanced_accuracy_score
 from visualise import generate_plots, process_image, get_image_predictions, normalize99,rescale01
+import pandas as pd
 
 class Trainer:
 
@@ -110,17 +111,23 @@ class Trainer:
         condition = '[' + '-'.join(condition) + ']'
 
         if os.path.exists(self.save_dir):
-            parts = (self.save_dir, "models", self.model_folder_name + "_" + self.timestamp, condition, "fold" + str(self.fold))
-            model_dir = pathlib.Path('').joinpath(*parts)
+            if self.kfolds > 0:
+                parts = (self.save_dir, "models", self.model_folder_name + "_" + self.timestamp, condition, "fold" + str(self.fold))
+            else:
+                parts = (self.save_dir, "models", self.model_folder_name + "_" + self.timestamp, condition)
+            self.model_dir = pathlib.Path('').joinpath(*parts)
         else:
-            parts = ("models", self.model_folder_name + "_" + self.timestamp, condition, "fold" + str(self.fold))
-            model_dir = pathlib.Path('').joinpath(*parts)
+            if self.kfolds > 0:
+                parts = ("models", self.model_folder_name + "_" + self.timestamp, condition, "fold" + str(self.fold))
+            else:
+                parts = ("models", self.model_folder_name + "_" + self.timestamp, condition)
+            self.model_dir = pathlib.Path('').joinpath(*parts)
 
         if self.kfolds > 0:
-            self.model_dir = str(model_dir)
+            self.model_dir = str(self.model_dir)
             self.model_path = str(pathlib.Path('').joinpath(*self.model_dir.parts, "AMRClassification_" + condition + "_" + "fold" + str(self.fold) + "_" + self.timestamp))
         else:
-            self.model_dir = pathlib.Path(model_dir)
+            self.model_dir = pathlib.Path(self.model_dir)
             self.model_path = str(pathlib.Path('').joinpath(*self.model_dir.parts[:-1], "AMRClassification_" + condition + "_" + self.timestamp))
 
         if not os.path.exists(self.model_dir):
@@ -135,6 +142,58 @@ class Trainer:
             self.writer = SummaryWriter(log_dir="runs/" + condition + "_" + self.timestamp)
 
 
+    def plot_descriptive_dataset_stats(self, show_plots=True, save_plots=False):
+
+        train_data = self.train_data
+        val_data = self.val_data
+        test_data = self.test_data
+        antibiotic_list = self.antibiotic_list
+        model_dir = pathlib.Path(self.model_dir)
+
+        for stat_name in train_data["stats"][0].keys():
+            plot_data = []
+
+            for dataset_name in ["train_data", "val_data", "test_data"]:
+                if dataset_name == "train_data":
+                    dataset = train_data
+                    dataset_size = len(dataset["labels"])
+                    dataset_plot_name = f"Training, N:{dataset_size}"
+                elif dataset_name == "val_data":
+                    dataset = val_data
+                    dataset_size = len(dataset["labels"])
+                    dataset_plot_name = f"Validation, N:{dataset_size}"
+                elif dataset_name == "test_data":
+                    dataset = test_data
+                    dataset_size = len(dataset["labels"])
+                    dataset_plot_name = f"Testing, N:{dataset_size}"
+
+                for label in np.unique(dataset["labels"]):
+                    label_indices = np.where(dataset["labels"] == label)[0]
+
+                    for index in label_indices:
+                        label = antibiotic_list[dataset["labels"][index]]
+                        stat = dataset["stats"][index]
+
+                        if stat != None:
+                            plot_data.append({"Dataset": dataset_plot_name, "label": label, "stat": stat[stat_name]})
+
+            plot_data = pd.DataFrame(plot_data)
+
+            sns.boxplot(x='Dataset', y='stat', data=plot_data, hue='label')
+            plt.legend(loc='upper right')
+            plt.ylabel(stat_name, fontsize=12)
+            plt.xlabel("Dataset", fontsize=12)
+            plt.title(f"Descriptive Statistics Distributions\n{stat_name}")
+            plt.tight_layout()
+            if save_plots:
+                plot_save_path = pathlib.Path('').joinpath(*model_dir.parts, "descriptive_dataset_statistics", f"{stat_name}_distribution.tif")
+                if not os.path.exists(os.path.dirname(plot_save_path)):
+                    os.makedirs(os.path.dirname(plot_save_path))
+                plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
+            if show_plots:
+                plt.show()
+            plt.close()
+
     def correct_predictions(self, label, pred_label):
 
         if len(label.shape) > 1:
@@ -146,30 +205,61 @@ class Trainer:
 
         return accuracy.numpy()
 
-    def visualise_augmentations(self,  n_repeats = 20):
+    def visualise_augmentations(self,  n_examples = 1, save_plots=True, show_plots=False):
 
-        dataset = load_dataset(images=[self.train_data["images"][1]]*n_repeats, labels=[self.train_data["labels"][1]]*n_repeats, num_classes=self.num_classes, augment=True)
-        dataloader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=False)
+        model_dir = pathlib.Path(self.model_dir)
 
-        augmented_images = []
+        for example_int in range(n_examples):
 
-        for images, _ in dataloader:
+            from random import randint
+            random_index = randint(0, len(self.train_data["images"])-1)
 
-            img = images[0].numpy()
+            dataset = load_dataset(
+                images=[self.train_data["images"][random_index]]*25,
+                labels=[self.train_data["labels"][random_index]]*25,
+                num_classes=self.num_classes,
+                augment=True,
+            )
+            dataloader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=False)
 
-            img = process_image(img)
+            centre_image = np.swapaxes(self.train_data["images"][random_index], 0, 2)
+            centre_image = rescale01(centre_image)*255
+            centre_image = centre_image.astype(np.uint8)
 
-            augmented_images.append(img)
+            augmented_images = []
 
-        fig, ax = plt.subplots(4, 5, figsize=(12, 10))
-        for i in range(4):
-            for j in range(5):
-                ax[i, j].imshow(augmented_images[i*4+j], cmap='gray')
-                ax[i, j].axis('off')
+            for images, _ in dataloader:
 
-        fig.suptitle('Example Augmentations', fontsize=16)
-        fig.tight_layout()
-        plt.show()
+                img = images[0].numpy()
+
+                img = process_image(img)
+
+                augmented_images.append(img)
+
+            fig, ax = plt.subplots(5, 5, figsize=(10, 10))
+            for i in range(5):
+                for j in range(5):
+                    if i ==2 and j == 2:
+                        centre_image = cv2.copyMakeBorder(centre_image, 3, 3, 3, 3, cv2.BORDER_CONSTANT, value=[255,0,0])
+                        ax[i,j].imshow(centre_image)
+                    else:
+                        ax[i, j].imshow(augmented_images[i*5+j])
+                    ax[i, j].axis('off')
+
+            fig.suptitle('Example Augmentations', fontsize=16)
+            fig.tight_layout()
+            plt.tight_layout()
+
+            if save_plots:
+                plot_save_path = pathlib.Path('').joinpath(*model_dir.parts, "example_augmentations", f"example_augmentation{example_int}.tif")
+                print(plot_save_path)
+                if not os.path.exists(os.path.dirname(plot_save_path)):
+                    os.makedirs(os.path.dirname(plot_save_path))
+                plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
+
+            if show_plots:
+                plt.show()
+            plt.close()
 
 
     def optuna_objective(self, trial):
@@ -251,14 +341,23 @@ class Trainer:
         self.learning_rate = float(trial.params["learning_rate"])
         self.hyperparameter_study = study
 
-        optuna.visualization.plot_optimization_history(study).write_image(self.model_dir.joinpath(f"optuna_plot_optimization_history.png"))
-        optuna.visualization.plot_slice(study).write_image(self.model_dir.joinpath(f"optuna_plot_slice.png"))
-        optuna.visualization.plot_parallel_coordinate(study).write_image(self.model_dir.joinpath(f"optuna_plot_parallel_coordinate.png"))
-        optuna.visualization.plot_contour(study).write_image(self.model_dir.joinpath(f"optuna_plot_contour.png"))
-        optuna.visualization.plot_param_importances(study).write_image(self.model_dir.joinpath(f"optuna_plot_param_importances.png"))
+        optimisation_history_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_optimisation_history_plot.png")
+        slice_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_slice_plot.png")
+        parallel_coordinate_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_parallel_coordinate_plot.png")
+        contour_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_contour_plot.png")
+        param_importances_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_param_importances_plot.png")
+
+        if not os.path.exists(os.path.dirname(optimisation_history_path)):
+            os.makedirs(os.path.dirname(optimisation_history_path))
+
+        optuna.visualization.plot_optimization_history(study).write_image(optimisation_history_path)
+        optuna.visualization.plot_slice(study).write_image(slice_plot_path)
+        optuna.visualization.plot_parallel_coordinate(study).write_image(parallel_coordinate_plot_path)
+        optuna.visualization.plot_contour(study).write_image(contour_plot_path)
+        optuna.visualization.plot_param_importances(study).write_image(param_importances_plot_path)
 
         from PIL import Image
-        img = np.asarray(Image.open(self.model_dir.joinpath(f"optuna_plot_slice.png")))
+        img = np.asarray(Image.open(slice_plot_path))
         plt.imshow(img)
         plt.axis('off')
         plt.show()
@@ -316,7 +415,8 @@ class Trainer:
                             'num_validation_images': self.num_validation_images,
                             'KFOLDS':self.kfolds,
                             'hyperparameters_tuned':self.hyperparameters_tuned,
-                            'hyperparameter_study':self.hyperparameter_study}, self.model_path,)
+                            'hyperparameter_study':self.hyperparameter_study,
+                            'antibiotic_list':self.antibiotic_list}, self.model_path,)
                 
                 # model_state_dict = torch.load(self.model_path)['model_state_dict']
                 # self.model.load_state_dict(model_state_dict)
@@ -396,9 +496,12 @@ class Trainer:
         batch_iter.close()
 
 
-    def evaluate(self, model_path):
+    def evaluate(self, model_path = None):
+
+        if model_path != None:
+            self.model_path = model_path
         
-        model_data = torch.load(model_path)
+        model_data = torch.load(self.model_path)
         self.model.load_state_dict(model_data['model_state_dict'])
 
         self.model.eval()  # evaluation mode
@@ -409,14 +512,17 @@ class Trainer:
         pred_labels = []
         pred_losses = []
         pred_confidences = []
+        pred_stats = []
 
-        testloader = torch.utils.data.DataLoader(dataset=self.test_dataset, batch_size=1, shuffle=False)
+        for image, label, stats in tqdm.tqdm(zip(self.test_data["images"],
+                                                 self.test_data["labels"],
+                                                 self.test_data["stats"]), total=len(self.test_data["images"])):
 
-        batch_iter = tqdm.tqdm(enumerate(testloader), 'Evaluating', total=len(testloader), position=0, leave=False)
+            image = torch.from_numpy(image.copy()).float()
+            label = F.one_hot(torch.tensor(label), num_classes=self.num_classes).float()
 
-        self.model.to(self.device)
-
-        for i, (image, label) in batch_iter:
+            image = torch.unsqueeze(image, 0)
+            label = torch.unsqueeze(label, 0)
 
             try:
 
@@ -458,12 +564,11 @@ class Trainer:
                     true_labels.append(true_label)
                     pred_confidences.append(pred_confidence[pred_label])
                     pred_losses.append(loss.item())
+                    pred_stats.append(stats)
 
             except:
                 print(traceback.format_exc())
                 pass
-
-
 
         # import pickle
         # with open('eval.pickle', 'wb') as handle:
@@ -485,13 +590,20 @@ class Trainer:
         model_data["confusion_matrix"] = cm
         model_data["test_labels"] = true_labels
         model_data["pred_labels"] = pred_labels
+        model_data["pred_confidences"] = pred_confidences
         model_data["test_accuracy"] = accuracy
         model_data["num_test_images"] = len(test_images)
         model_data["test_predictions"] = test_predictions
         model_data["test_balanced_accuracy"] = balanced_accuracy_score(true_labels, pred_labels)
+        model_data["test_stats"] = pred_stats
+        model_data["antibiotic_list"] = self.antibiotic_list
 
-        generate_plots(model_data, self.model_path)
         torch.save(model_data, self.model_path)
+
+        print("test_stats" in model_data.keys())
+
+        generate_plots(model_data, self.model_path, self.model_dir)
+
 
         return
 
