@@ -8,8 +8,6 @@ import torch.nn as nn
 
 import timm
 
-
-
 class timm_model(nn.Module):
 
     def __init__(self, num_classes, backbone='densenet121', pretrained=False, pretained_path=""):

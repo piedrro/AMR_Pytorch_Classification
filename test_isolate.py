@@ -19,10 +19,13 @@ antibiotic_list = ["Ciprofloxacin"]
 microscope_list = ["BIO-NIM", "ScanR"]
 channel_list = ["Cy3"]
 cell_list = ["single"]
-train_metadata = {"content": "E.Coli MG1655", "segmentation_curated": True}
-test_metadata = {"user_meta1": "L17667", "segmentation_curated": True}
+train_metadata = {"content": "E.Coli MG1655",
+                  "segmentation_curated": True}
+test_metadata = {"user_meta1": "L17667",
+                 "segmentation_curated": True,
+                 "user_meta3": "BioRepA"}
 
-model_backbone = 'densenet121'
+model_backbone = 'efficientnet_b0'
 ratio_train = 0.9
 val_test_split = 0.5
 BATCH_SIZE = 100
@@ -81,26 +84,26 @@ if __name__ == '__main__':
                                                           val_test_split=0.5,
                                                           label_limit = 'None')
 
-    training_dataset = load_dataset(images = train_data["images"],
-                                    labels = train_data["labels"],
-                                    num_classes = num_classes,
-                                    augment=AUGMENT)
+    # training_dataset = load_dataset(images = train_data["images"],
+    #                                 labels = train_data["labels"],
+    #                                 num_classes = num_classes,
+    #                                 augment=AUGMENT)
 
-    validation_dataset = load_dataset(images = val_data["images"],
-                                      labels = val_data["labels"],
-                                      num_classes = num_classes,
-                                      augment=False)
-
-    test_dataset = load_dataset(images = test_data["images"],
-                                labels = test_data["labels"],
-                                num_classes = num_classes,
-                                augment=False)
-    trainloader = data.DataLoader(dataset=training_dataset,
-                                  batch_size=BATCH_SIZE,
-                                  shuffle=True)
-    valoader = data.DataLoader(dataset=validation_dataset,
-                                batch_size=BATCH_SIZE,
-                                shuffle=False)
+    # validation_dataset = load_dataset(images = val_data["images"],
+    #                                   labels = val_data["labels"],
+    #                                   num_classes = num_classes,
+    #                                   augment=False)
+    #
+    # test_dataset = load_dataset(images = test_data["images"],
+    #                             labels = test_data["labels"],
+    #                             num_classes = num_classes,
+    #                             augment=False)
+    # trainloader = data.DataLoader(dataset=training_dataset,
+    #                               batch_size=BATCH_SIZE,
+    #                               shuffle=True)
+    # valoader = data.DataLoader(dataset=validation_dataset,
+    #                             batch_size=BATCH_SIZE,
+    #                             shuffle=False)
 
     # Preview images
     # images, labels = next(iter(trainloader))
@@ -134,8 +137,8 @@ if __name__ == '__main__':
 
     #model_path = trainer.train()
 
-    folder_path = r'/home/farrara/Code/AMR_PyTorch/models/AntibioticClassification_230216_1703/[Ciprofloxacin-Cy3]'
-    model_name = r'/AMRClassification_[Ciprofloxacin-Cy3]_230216_1703'
+    folder_path = r'\\cmfs1.physics.ox.ac.uk\cm\farrara\code\AMR_PyTorch\models'
+    model_name = r'\AMRClassification_[Ciprofloxacin-Cy3]_230425_1731'
     model_path = folder_path + model_name
     #model = torch.load(model_path, map_location=device)
 
