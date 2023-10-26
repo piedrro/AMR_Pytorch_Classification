@@ -15,14 +15,18 @@ import pickle
 image_size = (64,64)
 resize = False
 
-antibiotic_list = ["Untreated", "Gentamicin"]
+antibiotic_list = ["Untreated", "Ciprofloxacin"]
 microscope_list = ["BIO-NIM", "ScanR"]
 channel_list = ["Cy3"]
 cell_list = ["single"]
-train_metadata = {"content": "E.Coli MG1655", "segmentation_curated":True}
-test_metadata = {"user_meta3": "BioRepC"}
+train_metadata = {"content": "[E.Coli MG1655]",
+                  "antibiotic concentration": ["0XEUCAST","1XEUCAST"],
+                  "segmentation_curated":True}
+test_metadata = {"user_meta3": "BioRepA",
+                 "antibiotic concentration": ["0XEUCAST", "1XEUCAST"],
+                 "user_meta1": ["L17667"]}
 
-model_backbone = 'densenet121'
+model_backbone = 'efficientnet_b0'
 ratio_train = 0.9
 val_test_split = 0.5
 BATCH_SIZE = 100
@@ -30,12 +34,12 @@ LEARNING_RATE = 0.001
 EPOCHS = 100
 AUGMENT = True
 
-AKSEG_DIRECTORY = r"/run/user/26441/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG/"
-
+#AKSEG_DIRECTORY = r"/run/user/26441/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG/"
+AKSEG_DIRECTORY = r"\\physics\dfs\DAQ\CondensedMatterGroups\AKGroup\Piers\AKSEG\"
 USER_INITIAL = "AF"
 
 SAVE_DIR = "/home/farrara/Code/AMR_Pytorch/"
-MODEL_FOLDER_NAME = "AntibioticClassification"
+MODEL_FOLDER_NAME = "AntibioticClassificationTest"
 
 
 
@@ -110,8 +114,10 @@ if __name__ == '__main__':
     #     plt.imshow(img[0])
     #     plt.show()
 
+    model_path = r"\\physics\dfs\DAQ\CondensedMatterGroups\AKGroup\Alison\AntibioticClassification_TestL17667_CipRedo_230426_2202\AMRClassification_[Ciprofloxacin-Cy3]_230426_2202"
 
     model = models.densenet121(num_classes=len(antibiotic_list)).to(device)
+    model = model.load_state_dict(torch.load(model_path))
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -131,8 +137,6 @@ if __name__ == '__main__':
                       epochs=EPOCHS,
                       batch_size = BATCH_SIZE,
                       model_folder_name = MODEL_FOLDER_NAME)
-
-    model_path = trainer.train()
 
     model_data = trainer.evaluate(model,
                                   model_path,
