@@ -1,16 +1,17 @@
-
-from torch.utils import data
-import torch.optim as optim
+import pandas as pd
 import torch
-import torch.nn as nn
-import torchvision.models as models
+import timm
 import numpy as np
+<<<<<<< HEAD
 from matplotlib import pyplot as plt
 from datetime import datetime
+=======
+
+>>>>>>> upstream/main
 from trainer import Trainer
-from file_io import get_metadata, get_cell_images, cache_data, get_training_data
-from dataloader import load_dataset
+from file_io import get_metadata, get_training_data, cache_data
 import pickle
+<<<<<<< HEAD
 from evaluate import evaluate_model
 
 image_size = (64,64)
@@ -30,31 +31,54 @@ test_metadata = {"user_meta3": "BioRepC"}
 =======
 test_metadata = {"user_meta1": "L17667", "segmentation_curated": True}
 >>>>>>> Stashed changes
+=======
+
+
+image_size = (64,64)
+resize = False
+antibiotic_list = ["Untreated", "Ciprofloxacin"]
+microscope_list = ["BIO-NIM"]
+channel_list = ["532","405"]
+cell_list = ["single"]
+train_metadata = {"user_meta1":"2021 DL Paper", "user_meta2":"Lab Strains"}
+test_metadata = {"user_meta1":"2021 DL Paper", "user_meta2":"Lab Strains", "user_meta3":"Repeat 7"}
+>>>>>>> upstream/main
 
 model_backbone = 'densenet121'
+model_backbone = 'efficientnet_b0'
+
 ratio_train = 0.9
 val_test_split = 0.5
+<<<<<<< HEAD
 BATCH_SIZE = 100
 LEARNING_RATE = 0.001
 EPOCHS = 100
 AUGMENT = True
 
 AKSEG_DIRECTORY = r"/run/user/26441/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG/"
+=======
+BATCH_SIZE = 10
+LEARNING_RATE = 0.01
+EPOCHS = 10
+AUGMENT = True
 
-USER_INITIAL = "AF"
+AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG"
+# AKSEG_DIRECTORY = r"\\physics\dfs\DAQ\CondensedMatterGroups\AKGroup\Piers\AKSEG"
+>>>>>>> upstream/main
 
-SAVE_DIR = "/home/farrara/Code/AMR_Pytorch/"
+
+USER_INITIAL = "AZ"
+
+SAVE_DIR = "/home/turnerp/PycharmProjects/AMR_Pytorch_Classification"
 MODEL_FOLDER_NAME = "AntibioticClassification"
-
 
 
 # device
 if torch.cuda.is_available():
-    device = torch.device('cuda:1')
     torch.cuda.empty_cache()
+    device = torch.device('cuda:0')
 else:
     device = torch.device('cpu')
-
 
 akseg_metadata = get_metadata(AKSEG_DIRECTORY,
                               USER_INITIAL,
@@ -62,19 +86,20 @@ akseg_metadata = get_metadata(AKSEG_DIRECTORY,
                               antibiotic_list,
                               microscope_list,
                               train_metadata,
-                              test_metadata)
+                              test_metadata,)
 
-#
+
 if __name__ == '__main__':
 
-    cached_data = cache_data(akseg_metadata,
-                              image_size,
-                              antibiotic_list,
-                              channel_list,
-                              cell_list,
-                              import_limit = 9999,
-                              mask_background=True,
-                              resize=resize)
+    cached_data = cache_data(
+        akseg_metadata,
+        image_size,
+        antibiotic_list,
+        channel_list,
+        cell_list,
+        import_limit = 'None',
+        mask_background=True,
+        resize=resize)
 
     with open('cacheddata.pickle', 'wb') as handle:
         pickle.dump(cached_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -84,12 +109,16 @@ if __name__ == '__main__':
 
     num_classes = len(np.unique(cached_data["labels"]))
 
+    print(f"num_classes: {num_classes}, num_images: {len(cached_data['images'])}")
+
     train_data, val_data, test_data = get_training_data(cached_data,
                                                           shuffle=True,
-                                                          ratio_train = 0.9,
+                                                          ratio_train = 0.8,
                                                           val_test_split=0.5,
-                                                          label_limit = 'None')
+                                                          label_limit = 'None',
+                                                          balance = True,)
 
+<<<<<<< HEAD
     training_dataset = load_dataset(images = train_data["images"],
                                     labels = train_data["labels"],
                                     num_classes = num_classes,
@@ -126,14 +155,21 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
     timestamp = datetime.now().strftime("%y%m%d_%H%M")
+=======
+    print(f"train_data: {len(train_data['images'])}, val_data: {len(val_data['images'])}, test_data: {len(test_data['images'])}")
+    #
+    model = timm.create_model(model_backbone, pretrained=True, num_classes=len(antibiotic_list)).to(device)
+    # 'timm.list_models()' to list available models
+>>>>>>> upstream/main
 
     trainer = Trainer(model=model,
+                      num_classes=num_classes,
+                      augmentation=AUGMENT,
                       device=device,
-                      optimizer=optimizer,
-                      criterion=criterion,
-                      trainloader=trainloader,
-                      valoader=valoader,
-                      lr_scheduler=scheduler,
+                      learning_rate=LEARNING_RATE,
+                      train_data=train_data,
+                      val_data=val_data,
+                      test_data=test_data,
                       tensorboard=True,
                       antibiotic_list = antibiotic_list,
                       channel_list = channel_list,
@@ -141,8 +177,15 @@ if __name__ == '__main__':
                       batch_size = BATCH_SIZE,
                       model_folder_name = MODEL_FOLDER_NAME)
 
+    trainer.plot_descriptive_dataset_stats(show_plots=False, save_plots=True)
+
+    trainer.visualise_augmentations(n_examples=10, show_plots=False, save_plots=True)
+
+    trainer.tune_hyperparameters(num_trials=50, num_images = 2000, num_epochs = 10)
+
     model_path = trainer.train()
 
+<<<<<<< HEAD
     model_data = trainer.evaluate(model,
                                   model_path,
                                   train_data["images"],
@@ -150,3 +193,9 @@ if __name__ == '__main__':
                                   test_data["labels"],
                                   len(antibiotic_list))
     torch.cuda.empty_cache()
+=======
+    trainer.evaluate(model_path)
+
+    # model_path = r"models/AntibioticClassification_230324_1832/[Ciprofloxacin-532-405]/AMRClassification_[Ciprofloxacin-532-405]_230324_1832"
+
+>>>>>>> upstream/main
