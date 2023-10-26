@@ -6,3 +6,6 @@ models/AntibioticClassification_230216_1206/\[Ciprofloxacin-Cy3\]/AMRClassificat
 *.xml
 *.pyc
 *.pyc
+*.iml
+*.iml
+*.xml

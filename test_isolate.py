@@ -1,4 +1,3 @@
-
 from torch.utils import data
 import torch.optim as optim
 import torch
@@ -8,35 +7,27 @@ import numpy as np
 from matplotlib import pyplot as plt
 from datetime import datetime
 from trainer import Trainer
+from evaluate import evaluate_model
 from file_io import get_metadata, get_cell_images, cache_data, get_training_data
 from dataloader import load_dataset
 import pickle
-from evaluate import evaluate_model
 
 image_size = (64,64)
 resize = False
 
-<<<<<<< Updated upstream
-antibiotic_list = ["Untreated", "Gentamicin"]
-=======
 antibiotic_list = ["Ciprofloxacin"]
->>>>>>> Stashed changes
 microscope_list = ["BIO-NIM", "ScanR"]
 channel_list = ["Cy3"]
 cell_list = ["single"]
-train_metadata = {"content": "E.Coli MG1655", "segmentation_curated":True}
-<<<<<<< Updated upstream
-test_metadata = {"user_meta3": "BioRepC"}
-=======
+train_metadata = {"content": "E.Coli MG1655", "segmentation_curated": True}
 test_metadata = {"user_meta1": "L17667", "segmentation_curated": True}
->>>>>>> Stashed changes
 
 model_backbone = 'densenet121'
 ratio_train = 0.9
 val_test_split = 0.5
 BATCH_SIZE = 100
 LEARNING_RATE = 0.001
-EPOCHS = 100
+EPOCHS = 1
 AUGMENT = True
 
 AKSEG_DIRECTORY = r"/run/user/26441/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG/"
@@ -120,33 +111,37 @@ if __name__ == '__main__':
     #     plt.show()
 
 
-    model = models.densenet121(num_classes=len(antibiotic_list)).to(device)
+    # model = models.densenet121(num_classes=len(antibiotic_list)).to(device)
+    #
+    # criterion = nn.CrossEntropyLoss()
+    # optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+    # timestamp = datetime.now().strftime("%y%m%d_%H%M")
+    #
+    # trainer = Trainer(model=model,
+    #                   device=device,
+    #                   optimizer=optimizer,
+    #                   criterion=criterion,
+    #                   trainloader=trainloader,
+    #                   valoader=valoader,
+    #                   lr_scheduler=scheduler,
+    #                   tensorboard=True,
+    #                   antibiotic_list = antibiotic_list,
+    #                   channel_list = channel_list,
+    #                   epochs=EPOCHS,
+    #                   batch_size = BATCH_SIZE,
+    #                   model_folder_name = MODEL_FOLDER_NAME)
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
-    timestamp = datetime.now().strftime("%y%m%d_%H%M")
+    #model_path = trainer.train()
 
-    trainer = Trainer(model=model,
-                      device=device,
-                      optimizer=optimizer,
-                      criterion=criterion,
-                      trainloader=trainloader,
-                      valoader=valoader,
-                      lr_scheduler=scheduler,
-                      tensorboard=True,
-                      antibiotic_list = antibiotic_list,
-                      channel_list = channel_list,
-                      epochs=EPOCHS,
-                      batch_size = BATCH_SIZE,
-                      model_folder_name = MODEL_FOLDER_NAME)
+    folder_path = r'/home/farrara/Code/AMR_PyTorch/models/AntibioticClassification_230216_1703/[Ciprofloxacin-Cy3]'
+    model_name = r'/AMRClassification_[Ciprofloxacin-Cy3]_230216_1703'
+    model_path = folder_path + model_name
+    #model = torch.load(model_path, map_location=device)
 
-    model_path = trainer.train()
-
-    model_data = trainer.evaluate(model,
-                                  model_path,
-                                  train_data["images"],
-                                  test_data["images"],
-                                  test_data["labels"],
-                                  len(antibiotic_list))
+    model_data = evaluate_model(model_path,
+                                train_data["images"],
+                                test_data["images"],
+                                test_data["labels"],
+                                num_classes=2)
     torch.cuda.empty_cache()
