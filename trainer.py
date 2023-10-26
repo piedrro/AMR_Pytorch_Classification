@@ -18,18 +18,14 @@ import itertools
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import confusion_matrix
-# from visalize import generate_plots
+# from visualise import generate_plots
 import matplotlib.pyplot as plt
 import shap
 import copy
 import warnings
-warnings.filterwarnings("ignore", message="Using a non-full backward hook when the forward contains multiple autograd Nodes is deprecated and will be removed in future versions. This hook will be missing some grad_input. Please use register_full_backward_hook to get the documented behavior.")
-<<<<<<< HEAD
-=======
 import optuna
 import io
 from dataloader import load_dataset
-from torch.utils import data
 from torch.utils import data
 import torch.optim as optim
 import torch.nn as nn
@@ -38,7 +34,7 @@ import tifffile
 from sklearn.metrics import balanced_accuracy_score
 from visualise import generate_plots, process_image, get_image_predictions, normalize99,rescale01
 import pandas as pd
->>>>>>> upstream/main
+warnings.filterwarnings("ignore", message="Using a non-full backward hook when the forward contains multiple autograd Nodes is deprecated and will be removed in future versions. This hook will be missing some grad_input. Please use register_full_backward_hook to get the documented behavior.")
 
 class Trainer:
 
@@ -498,21 +494,6 @@ class Trainer:
 
         batch_iter.close()
 
-<<<<<<< HEAD
-def normalize99(X):
-    """ normalize image so 0.0 is 0.01st percentile and 1.0 is 99.99th percentile """
-    X = X.copy()
-    v_min, v_max = np.percentile(X[X != 0], (1, 99))
-    X = exposure.rescale_intensity(X, in_range=(v_min, v_max))
-    return X
-
-
-def rescale01(x):
-    """ normalize image from 0 to 1 """
-    x = (x - np.min(x)) / (np.max(x) - np.min(x))
-    return x
-=======
-
     def evaluate(self, model_path = None):
 
         if model_path != None:
@@ -623,8 +604,6 @@ def rescale01(x):
 
 
         return
-
->>>>>>> upstream/main
 
 
 
