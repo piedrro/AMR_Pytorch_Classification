@@ -1,8 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-<<<<<<< Updated upstream
-  <component name="ProjectRootManager" version="2" project-jdk-name="AMR_AF_Ribosome_Classification" project-jdk-type="Python SDK" />
-=======
-  <component name="ProjectRootManager" version="2" project-jdk-name="Remote AMR" project-jdk-type="Python SDK" />
->>>>>>> Stashed changes
+  <component name="ProjectRootManager" version="2" project-jdk-name="pytorch-new" project-jdk-type="Python SDK" />
 </project>
