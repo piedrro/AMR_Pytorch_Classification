@@ -111,7 +111,3 @@ def determine_overlap(mask, cell_mask, contour):
 #     ax.boxplot(plot_data, labels = antibiotic_list, widths = 0.7)
 #     ax.set_ylabel(stat_name)
 #     plt.show()
-
-
-
-

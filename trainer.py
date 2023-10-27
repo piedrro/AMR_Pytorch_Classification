@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Feb  9 14:23:14 2022
-
-@author: turnerp
-"""
 import traceback
 import seaborn as sns
 import numpy as np
@@ -18,23 +12,27 @@ import itertools
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import confusion_matrix
-# from visualise import generate_plots
+# from visalize import generate_plots
 import matplotlib.pyplot as plt
 import shap
 import copy
 import warnings
+
+warnings.filterwarnings("ignore",
+                        message="Using a non-full backward hook when the forward contains multiple autograd Nodes is deprecated and will be removed in future versions. This hook will be missing some grad_input. Please use register_full_backward_hook to get the documented behavior.")
 import optuna
 import io
 from dataloader import load_dataset
+from torch.utils import data
 from torch.utils import data
 import torch.optim as optim
 import torch.nn as nn
 import cv2
 import tifffile
 from sklearn.metrics import balanced_accuracy_score
-from visualise import generate_plots, process_image, get_image_predictions, normalize99,rescale01
+from visualise import generate_plots, process_image, get_image_predictions, normalize99, rescale01
 import pandas as pd
-warnings.filterwarnings("ignore", message="Using a non-full backward hook when the forward contains multiple autograd Nodes is deprecated and will be removed in future versions. This hook will be missing some grad_input. Please use register_full_backward_hook to get the documented behavior.")
+
 
 class Trainer:
 
@@ -44,21 +42,21 @@ class Trainer:
                  augmentation: bool = False,
                  pretrained_model=None,
                  device: torch.device = None,
-                 antibiotic_list = [],
-                 channel_list = [],
-                 train_data = None,
-                 val_data = None,
-                 test_data = None,
+                 antibiotic_list=[],
+                 channel_list=[],
+                 train_data=None,
+                 val_data=None,
+                 test_data=None,
                  batch_size: int = None,
                  tensorboard=bool,
                  epochs: int = 100,
                  kfolds: int = 0,
                  fold: int = 0,
-                 model_folder_name = '',
-                 model_path = None,
-                 save_dir = '',
-                 timestamp = datetime.now().strftime("%y%m%d_%H%M"),
-                 learning_rate = 0.001,
+                 model_folder_name='',
+                 model_path=None,
+                 save_dir='',
+                 timestamp=datetime.now().strftime("%y%m%d_%H%M"),
+                 learning_rate=0.001,
                  ):
 
         self.model = model
@@ -92,9 +90,12 @@ class Trainer:
         self.hyperparameters_tuned = False
         self.hyperparameter_study = None
 
-        self.training_dataset = load_dataset(images=train_data["images"], labels=train_data["labels"], num_classes=self.num_classes, augment=self.augmentation)
-        self.validation_dataset = load_dataset(images=val_data["images"], labels=val_data["labels"], num_classes=self.num_classes, augment=False)
-        self.test_dataset = load_dataset(images=test_data["images"], labels=test_data["labels"], num_classes=self.num_classes, augment=False)
+        self.training_dataset = load_dataset(images=train_data["images"], labels=train_data["labels"],
+                                             num_classes=self.num_classes, augment=self.augmentation)
+        self.validation_dataset = load_dataset(images=val_data["images"], labels=val_data["labels"],
+                                               num_classes=self.num_classes, augment=False)
+        self.test_dataset = load_dataset(images=test_data["images"], labels=test_data["labels"],
+                                         num_classes=self.num_classes, augment=False)
 
         self.criterion = nn.CrossEntropyLoss()
         self.learning_rate_values = []
@@ -103,7 +104,6 @@ class Trainer:
 
         self.bar_format = '{l_bar}{bar:2}{r_bar}{bar:-10b} [{remaining}]'
 
-
     def initialise_model_paths(self):
 
         condition = [self.antibiotic] + self.channel_list
@@ -111,7 +111,8 @@ class Trainer:
 
         if os.path.exists(self.save_dir):
             if self.kfolds > 0:
-                parts = (self.save_dir, "models", self.model_folder_name + "_" + self.timestamp, condition, "fold" + str(self.fold))
+                parts = (self.save_dir, "models", self.model_folder_name + "_" + self.timestamp, condition,
+                         "fold" + str(self.fold))
             else:
                 parts = (self.save_dir, "models", self.model_folder_name + "_" + self.timestamp, condition)
             self.model_dir = pathlib.Path('').joinpath(*parts)
@@ -124,10 +125,13 @@ class Trainer:
 
         if self.kfolds > 0:
             self.model_dir = str(self.model_dir)
-            self.model_path = str(pathlib.Path('').joinpath(*self.model_dir.parts, "AMRClassification_" + condition + "_" + "fold" + str(self.fold) + "_" + self.timestamp))
+            self.model_path = str(pathlib.Path('').joinpath(*self.model_dir.parts,
+                                                            "AMRClassification_" + condition + "_" + "fold" + str(
+                                                                self.fold) + "_" + self.timestamp))
         else:
             self.model_dir = pathlib.Path(self.model_dir)
-            self.model_path = str(pathlib.Path('').joinpath(*self.model_dir.parts[:-1], "AMRClassification_" + condition + "_" + self.timestamp))
+            self.model_path = str(pathlib.Path('').joinpath(*self.model_dir.parts[:-1],
+                                                            "AMRClassification_" + condition + "_" + self.timestamp))
 
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
@@ -139,7 +143,6 @@ class Trainer:
 
         if self.tensorboard:
             self.writer = SummaryWriter(log_dir="runs/" + condition + "_" + self.timestamp)
-
 
     def plot_descriptive_dataset_stats(self, show_plots=True, save_plots=False):
 
@@ -185,7 +188,8 @@ class Trainer:
             plt.title(f"Descriptive Statistics Distributions\n{stat_name}")
             plt.tight_layout()
             if save_plots:
-                plot_save_path = pathlib.Path('').joinpath(*model_dir.parts, "descriptive_dataset_statistics", f"{stat_name}_distribution.tif")
+                plot_save_path = pathlib.Path('').joinpath(*model_dir.parts, "descriptive_dataset_statistics",
+                                                           f"{stat_name}_distribution.tif")
                 if not os.path.exists(os.path.dirname(plot_save_path)):
                     os.makedirs(os.path.dirname(plot_save_path))
                 plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
@@ -204,31 +208,30 @@ class Trainer:
 
         return accuracy.numpy()
 
-    def visualise_augmentations(self,  n_examples = 1, save_plots=True, show_plots=False):
+    def visualise_augmentations(self, n_examples=1, save_plots=True, show_plots=False):
 
         model_dir = pathlib.Path(self.model_dir)
 
         for example_int in range(n_examples):
 
             from random import randint
-            random_index = randint(0, len(self.train_data["images"])-1)
+            random_index = randint(0, len(self.train_data["images"]) - 1)
 
             dataset = load_dataset(
-                images=[self.train_data["images"][random_index]]*25,
-                labels=[self.train_data["labels"][random_index]]*25,
+                images=[self.train_data["images"][random_index]] * 25,
+                labels=[self.train_data["labels"][random_index]] * 25,
                 num_classes=self.num_classes,
                 augment=True,
             )
             dataloader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=False)
 
             centre_image = np.swapaxes(self.train_data["images"][random_index], 0, 2)
-            centre_image = rescale01(centre_image)*255
+            centre_image = rescale01(centre_image) * 255
             centre_image = centre_image.astype(np.uint8)
 
             augmented_images = []
 
             for images, _ in dataloader:
-
                 img = images[0].numpy()
 
                 img = process_image(img)
@@ -238,11 +241,12 @@ class Trainer:
             fig, ax = plt.subplots(5, 5, figsize=(10, 10))
             for i in range(5):
                 for j in range(5):
-                    if i ==2 and j == 2:
-                        centre_image = cv2.copyMakeBorder(centre_image, 3, 3, 3, 3, cv2.BORDER_CONSTANT, value=[255,0,0])
-                        ax[i,j].imshow(centre_image)
+                    if i == 2 and j == 2:
+                        centre_image = cv2.copyMakeBorder(centre_image, 3, 3, 3, 3, cv2.BORDER_CONSTANT,
+                                                          value=[255, 0, 0])
+                        ax[i, j].imshow(centre_image)
                     else:
-                        ax[i, j].imshow(augmented_images[i*5+j])
+                        ax[i, j].imshow(augmented_images[i * 5 + j])
                     ax[i, j].axis('off')
 
             fig.suptitle('Example Augmentations', fontsize=16)
@@ -250,7 +254,8 @@ class Trainer:
             plt.tight_layout()
 
             if save_plots:
-                plot_save_path = pathlib.Path('').joinpath(*model_dir.parts, "example_augmentations", f"example_augmentation{example_int}.tif")
+                plot_save_path = pathlib.Path('').joinpath(*model_dir.parts, "example_augmentations",
+                                                           f"example_augmentation{example_int}.tif")
                 print(plot_save_path)
                 if not os.path.exists(os.path.dirname(plot_save_path)):
                     os.makedirs(os.path.dirname(plot_save_path))
@@ -259,7 +264,6 @@ class Trainer:
             if show_plots:
                 plt.show()
             plt.close()
-
 
     def optuna_objective(self, trial):
 
@@ -293,15 +297,16 @@ class Trainer:
                 loss = self.criterion(pred_label, labels)
                 running_loss += loss.item()
 
-        return running_loss/len(tune_valoader)
+        return running_loss / len(tune_valoader)
 
-
-    def load_tune_dataset(self, num_images=100, num_epochs = 10):
+    def load_tune_dataset(self, num_images=100, num_epochs=10):
 
         tune_images = []
         tune_labels = []
 
-        tune_train_dataset = load_dataset(images=self.train_data["images"][:num_images], labels=self.train_data["labels"][:num_images], num_classes=self.num_classes, augment=True)
+        tune_train_dataset = load_dataset(images=self.train_data["images"][:num_images],
+                                          labels=self.train_data["labels"][:num_images], num_classes=self.num_classes,
+                                          augment=True)
         tuneloader = data.DataLoader(dataset=tune_train_dataset, batch_size=self.batch_size, shuffle=True)
 
         for i in range(num_epochs):
@@ -315,13 +320,15 @@ class Trainer:
 
         print(f"Loaded {len(tune_images)} images for hyperparameter tuning.")
 
-        self.tune_train_dataset = load_dataset(images=tune_images, labels=tune_labels, num_classes=self.num_classes, augment=False)
-        self.tune_val_dataset = load_dataset(images=self.val_data["images"][:num_images], labels=self.val_data["labels"][:num_images], num_classes=self.num_classes, augment=False)
+        self.tune_train_dataset = load_dataset(images=tune_images, labels=tune_labels, num_classes=self.num_classes,
+                                               augment=False)
+        self.tune_val_dataset = load_dataset(images=self.val_data["images"][:num_images],
+                                             labels=self.val_data["labels"][:num_images], num_classes=self.num_classes,
+                                             augment=False)
 
+    def tune_hyperparameters(self, num_trials=5, num_images=500, num_epochs=4):
 
-    def tune_hyperparameters(self, num_trials=5, num_images = 500, num_epochs = 4):
-
-        self.load_tune_dataset(num_images = num_images, num_epochs = num_epochs)
+        self.load_tune_dataset(num_images=num_images, num_epochs=num_epochs)
 
         self.num_tune_images = num_images
         self.num_tune_epochs = num_epochs
@@ -340,11 +347,14 @@ class Trainer:
         self.learning_rate = float(trial.params["learning_rate"])
         self.hyperparameter_study = study
 
-        optimisation_history_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_optimisation_history_plot.png")
-        slice_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_slice_plot.png")
-        parallel_coordinate_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_parallel_coordinate_plot.png")
-        contour_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_contour_plot.png")
-        param_importances_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna","optuna_param_importances_plot.png")
+        optimisation_history_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna",
+                                                              "optuna_optimisation_history_plot.png")
+        slice_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna", "optuna_slice_plot.png")
+        parallel_coordinate_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna",
+                                                                  "optuna_parallel_coordinate_plot.png")
+        contour_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna", "optuna_contour_plot.png")
+        param_importances_plot_path = pathlib.Path('').joinpath(*self.model_dir.parts, "Optuna",
+                                                                "optuna_param_importances_plot.png")
 
         if not os.path.exists(os.path.dirname(optimisation_history_path)):
             os.makedirs(os.path.dirname(optimisation_history_path))
@@ -371,7 +381,8 @@ class Trainer:
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.5)
 
-        progressbar = tqdm.tqdm(range(self.epochs), 'Progress', total=self.epochs, position=0, leave=True, bar_format=self.bar_format)
+        progressbar = tqdm.tqdm(range(self.epochs), 'Progress', total=self.epochs, position=0, leave=True,
+                                bar_format=self.bar_format)
 
         for i in progressbar:
             """Epoch counter"""
@@ -396,9 +407,8 @@ class Trainer:
                 self.lr_scheduler.step()  # learning rate scheduler step
 
             if self.validation_accuracy[-1] == np.max(self.validation_accuracy):
-                
                 self.model.eval()
-                
+
                 torch.save({'epoch': self.epoch,
                             'num_epochs': self.epochs,
                             'model_state_dict': self.model.state_dict(),
@@ -412,11 +422,11 @@ class Trainer:
                             'channel_list': self.channel_list,
                             'num_train_images': self.num_train_images,
                             'num_validation_images': self.num_validation_images,
-                            'KFOLDS':self.kfolds,
-                            'hyperparameters_tuned':self.hyperparameters_tuned,
-                            'hyperparameter_study':self.hyperparameter_study,
-                            'antibiotic_list':self.antibiotic_list}, self.model_path,)
-                
+                            'KFOLDS': self.kfolds,
+                            'hyperparameters_tuned': self.hyperparameters_tuned,
+                            'hyperparameter_study': self.hyperparameter_study,
+                            'antibiotic_list': self.antibiotic_list}, self.model_path, )
+
                 # model_state_dict = torch.load(self.model_path)['model_state_dict']
                 # self.model.load_state_dict(model_state_dict)
 
@@ -426,19 +436,19 @@ class Trainer:
         return self.model_path
 
     def train_step(self):
-        
+
         self.model.train()
         train_losses = []  # accumulate the losses here
         train_accuracies = []
 
-        batch_iter = tqdm.tqdm(enumerate(self.trainloader), 'Training', total=len(self.trainloader), position=0,leave=False, bar_format=self.bar_format)
+        batch_iter = tqdm.tqdm(enumerate(self.trainloader), 'Training', total=len(self.trainloader), position=0,
+                               leave=False, bar_format=self.bar_format)
 
         for i, (images, labels) in batch_iter:
             images, labels = images.to(self.device), labels.to(self.device)  # send to device (GPU or CPU)
 
             # checks if any images contains a NaN
             if not torch.isnan(images).any():
-
                 self.optimizer.zero_grad()  # zerograd the parameters
                 pred_label = self.model(images)  # one forward pass
 
@@ -453,7 +463,8 @@ class Trainer:
 
                 current_lr = self.optimizer.param_groups[0]['lr']
 
-                batch_iter.set_description(f'Training[{self.epoch}\\{self.epochs}]:(loss {np.mean(train_losses):.3f}, Acc {np.mean(train_accuracies):.2f}')  # update progressbar
+                batch_iter.set_description(
+                    f'Training[{self.epoch}\\{self.epochs}]:(loss {np.mean(train_losses):.3f}, Acc {np.mean(train_accuracies):.2f}')  # update progressbar
 
         self.training_loss.append(np.mean(train_losses))
         self.training_accuracy.append(np.mean(train_accuracies))
@@ -467,14 +478,14 @@ class Trainer:
         valid_losses = []  # accumulate the losses here
         valid_accuracies = []
 
-        batch_iter = tqdm.tqdm(enumerate(self.valoader), 'Validation', total=len(self.valoader), position=0,leave=False, bar_format=self.bar_format)
+        batch_iter = tqdm.tqdm(enumerate(self.valoader), 'Validation', total=len(self.valoader), position=0,
+                               leave=False, bar_format=self.bar_format)
 
         for i, (images, labels) in batch_iter:
             images, labels = images.to(self.device), labels.to(self.device)  # send to device (GPU or CPU)
 
-            #checks if any images contains a NaN
+            # checks if any images contains a NaN
             if not torch.isnan(images).any():
-
                 with torch.no_grad():
                     pred_label = self.model(images)
 
@@ -494,11 +505,11 @@ class Trainer:
 
         batch_iter.close()
 
-    def evaluate(self, model_path = None):
+    def evaluate(self, model_path=None):
 
         if model_path != None:
             self.model_path = model_path
-        
+
         model_data = torch.load(self.model_path)
         self.model.load_state_dict(model_data['model_state_dict'])
 
@@ -525,7 +536,6 @@ class Trainer:
             try:
 
                 if not torch.isnan(image).any():
-
                     image, label = image.to(self.device), label.to(self.device)  # send to device (GPU or CPU)
 
                     image.requires_grad = True
@@ -579,7 +589,7 @@ class Trainer:
 
         test_predictions = get_image_predictions(test_images,
                                                  saliency_maps,
-                                                 true_labels,pred_labels,
+                                                 true_labels, pred_labels,
                                                  pred_confidences,
                                                  self.antibiotic_list)
 
@@ -602,8 +612,4 @@ class Trainer:
 
         generate_plots(model_data, self.model_path, self.model_dir)
 
-
         return
-
-
-

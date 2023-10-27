@@ -1,4 +1,3 @@
-
 import numpy as np
 from skimage import exposure
 import itertools
@@ -375,4 +374,3 @@ def plot_test_stat_correlations(model_data, model_dir):
         plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
         plt.show()
         plt.close()
-

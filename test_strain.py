@@ -1,47 +1,46 @@
-import pandas as pd
+"""
+STILL NEEDS TO BE ADAPTED TO TEST ONLY
+"""
+
 import torch
 import timm
 import numpy as np
 from trainer import Trainer
-from file_io import get_metadata, get_training_data, cache_data
+from file_io import get_metadata, get_cell_images, cache_data, get_training_data
 import pickle
-
 
 image_size = (64,64)
 resize = False
-antibiotic_list = ["Untreated", "Ciprofloxacin"]
-microscope_list = ["BIO-NIM"]
-channel_list = ["Cy3","DAPI"]
+
+antibiotic_list = ["Ciprofloxacin"]
+microscope_list = ["BIO_NIM"]
+channel_list = ["Cy3"]
 cell_list = ["single"]
 train_metadata = {"content": "E.Coli MG1655",
                   "segmentation_curated": True}
-test_metadata = {"content": "E.Coli MG1655",
+test_metadata = {"user_meta1": "L17667",
                  "segmentation_curated": True,
-                 "user_meta3": "BioRepD"}
+                 "user_meta3": "BioRepA"}
 
-#model_backbone = 'densenet121'
 model_backbone = 'efficientnet_b0'
 
 ratio_train = 0.9
 val_test_split = 0.5
-BATCH_SIZE = 100
-LEARNING_RATE = 0.001
-EPOCHS = 100
+BATCH_SIZE = 10
+LEARNING_RATE = 0.01
+EPOCHS = 10
 AUGMENT = True
 
-## Linux
-AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG"
-## Windows
-# AKSEG_DIRECTORY = r"\\physics\dfs\DAQ\CondensedMatterGroups\AKGroup\Piers\AKSEG"
-
+## Directory Linux
+#AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG"
+## Directory Windows
+AKSEG_DIRECTORY = r"\\physics\dfs\DAQ\CondensedMatterGroups\AKGroup\Piers\AKSEG"
 
 USER_INITIAL = "AF"
-## LINUX
-SAVE_DIR = "/home/farrara/code/AMR_PyTorch"
-## SERVER
-#SAVE_DIR = r"\\cmfs1.physics.ox.ac.uk\cm\farrara\code\AMR_PyTorch"
-MODEL_FOLDER_NAME = "AntibioticClassification"
 
+#SAVE_DIR = "/home/turnerp/PycharmProjects/AMR_Pytorch_Classification"
+SAVE_DIR = r"\\cmfs1.physics.ox.ac.uk\cm\farrara\code\AMR_PyTorch"
+MODEL_FOLDER_NAME = "AntibioticClassification"
 
 # device
 if torch.cuda.is_available():
@@ -57,7 +56,6 @@ akseg_metadata = get_metadata(AKSEG_DIRECTORY,
                               microscope_list,
                               train_metadata,
                               test_metadata,)
-
 
 if __name__ == '__main__':
 
@@ -82,11 +80,11 @@ if __name__ == '__main__':
     print(f"num_classes: {num_classes}, num_images: {len(cached_data['images'])}")
 
     train_data, val_data, test_data = get_training_data(cached_data,
-                                                        shuffle=True,
-                                                        ratio_train = 0.8,
-                                                        val_test_split=0.5,
-                                                        label_limit = 'None',
-                                                        balance = True,)
+                                                          shuffle=True,
+                                                          ratio_train = 0.8,
+                                                          val_test_split=0.5,
+                                                          label_limit = 'None',
+                                                          balance = True,)
 
     print(f"train_data: {len(train_data['images'])}, val_data: {len(val_data['images'])}, test_data: {len(test_data['images'])}")
     #
