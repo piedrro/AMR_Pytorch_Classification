@@ -1,31 +1,31 @@
 from sklearn.model_selection import train_test_split, StratifiedKFold, StratifiedShuffleSplit
-from torch.utils import data
-from torch.utils.data import SubsetRandomSampler
-import torch.optim as optim
-import torch
-import torch.nn as nn
-import torchvision.models as models
-# from trainer import Trainer
-import pickle
-import matplotlib.pyplot as plt
+# from torch.utils import data
+# from torch.utils.data import SubsetRandomSampler
+# import torch.optim as optim
+# import torch
+# import torch.nn as nn
+# import torchvision.models as models
+# # from trainer import Trainer
+# import pickle
+# import matplotlib.pyplot as plt
 import os
 import numpy as np
-from datetime import datetime
+# from datetime import datetime
 import pandas as pd
-import itertools
-from itertools import compress, product
-from skimage import exposure
+# import itertools
+# from itertools import compress, product
+# from skimage import exposure
 import cv2
 import json
 from imgaug import augmenters as iaa
-import albumentations as A
+# import albumentations as A
 import tifffile
-import tqdm
+# import tqdm
 from multiprocessing import Pool
 import traceback
 from functools import partial
 import random
-import torch.nn.functional as F
+# import torch.nn.functional as F
 import pathlib
 from skimage.registration import phase_cross_correlation
 import scipy
@@ -352,7 +352,8 @@ def get_cell_images(dat, image_size, channel_list, cell_list, antibiotic_list,
 
                 cell_image_crop = resize_image(image_size, h, w, cell_image_crop, colicoords, resize)
 
-                cell_image_crop = normalize99(cell_image_crop)
+                if normalise:
+                    cell_image_crop = normalize99(cell_image_crop)
 
                 if (np.max(cell_image_crop) - np.min(cell_image_crop)) > 0:
                     cell_image_crop = rescale01(cell_image_crop)
@@ -394,6 +395,7 @@ def cache_data(data, image_size, antibiotic_list, channel_list, cell_list,
                                    import_limit=import_limit,
                                    colicoords=colicoords,
                                    mask_background=mask_background,
+                                   normalise=normalise,
                                    resize=resize), data)
 
         dataset, images, labels, file_names, mask_ids, stats = zip(*results)
@@ -462,19 +464,20 @@ def get_training_data(cached_data, shuffle=True, ratio_train=0.8, val_test_split
         if shuffle is True:
             data = data.sample(frac=1, random_state=42)
 
-        train_indcies = data[data["dataset"] == "train"].index.values.tolist()
-        test_indcies = data[data["dataset"] == "test"].index.values.tolist()
+        train_indices = data[data["dataset"] == "train"].index.values.tolist()
+        test_indices = data[data["dataset"] == "test"].index.values.tolist()
 
         train_indices, val_indices = train_test_split(train_indices,
                                                       train_size=ratio_train,
                                                       random_state=42,
                                                       shuffle=True)
 
-        if len(test_indcies) == 0:
+        if len(test_indices) == 0:
             val_indices, test_indices = train_test_split(val_indices,
                                                          train_size=val_test_split,
                                                          random_state=42,
                                                          shuffle=True)
+            print('No test data, using validation set as test dataset')
 
         overlap = list(set(train_indices) & set(val_indices) & set(test_indices))
 

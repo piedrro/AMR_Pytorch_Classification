@@ -1,4 +1,4 @@
-import pandas as pd
+# import pandas as pd
 import torch
 import timm
 import numpy as np
@@ -9,16 +9,17 @@ import pickle
 
 image_size = (64,64)
 resize = False
-antibiotic_list = ["Untreated", "Ciprofloxacin"]
+antibiotic_list = ["Untreated", "Gentamicin"]
 microscope_list = ["BIO-NIM"]
-channel_list = ["Cy3","DAPI"]
+#channel_list = ["DAPI"]
+channel_list = ["Cy3"]
 cell_list = ["single"]
 train_metadata = {"content": "E.Coli MG1655",
-                  "segmentation_curated": True}
+                  "user_meta6": "AMRPhenotypes"}
 test_metadata = {"content": "E.Coli MG1655",
-                 "segmentation_curated": True,
-                 "user_meta3": "BioRepD"}
-
+                 "user_meta3": "BioRepC",
+                 "user_meta6": "AMRPhenotypes"} # this tag includes only 0XEUCAST, 1XEUCAST, 20X, and none abx conc
+#"segmentation_curated": True
 #model_backbone = 'densenet121'
 model_backbone = 'efficientnet_b0'
 
@@ -30,16 +31,16 @@ EPOCHS = 100
 AUGMENT = True
 
 ## Linux
-AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG"
+# AKSEG_DIRECTORY = r"/run/user/26623/gvfs/smb-share:server=physics.ox.ac.uk,share=dfs/DAQ/CondensedMatterGroups/AKGroup/Piers/AKSEG"
 ## Windows
-# AKSEG_DIRECTORY = r"\\physics\dfs\DAQ\CondensedMatterGroups\AKGroup\Piers\AKSEG"
+AKSEG_DIRECTORY = r"\\physics\dfs\DAQ\CondensedMatterGroups\AKGroup\Piers\AKSEG"
 
 
 USER_INITIAL = "AF"
 ## LINUX
-SAVE_DIR = "/home/farrara/code/AMR_PyTorch"
+# SAVE_DIR = "/home/farrara/code/AMR_PyTorch"
 ## SERVER
-#SAVE_DIR = r"\\cmfs1.physics.ox.ac.uk\cm\farrara\code\AMR_PyTorch"
+SAVE_DIR = r"C:\Users\farrara\Desktop\AMR_Pytorch_Classification"
 MODEL_FOLDER_NAME = "AntibioticClassification"
 
 
@@ -47,8 +48,10 @@ MODEL_FOLDER_NAME = "AntibioticClassification"
 if torch.cuda.is_available():
     torch.cuda.empty_cache()
     device = torch.device('cuda:0')
+    print(device)
 else:
     device = torch.device('cpu')
+    print(device)
 
 akseg_metadata = get_metadata(AKSEG_DIRECTORY,
                               USER_INITIAL,
@@ -112,7 +115,7 @@ if __name__ == '__main__':
 
     trainer.visualise_augmentations(n_examples=10, show_plots=False, save_plots=True)
 
-    trainer.tune_hyperparameters(num_trials=50, num_images = 2000, num_epochs = 10)
+    trainer.tune_hyperparameters(num_trials=10, num_images = 2000, num_epochs = 10)
 
     model_path = trainer.train()
 

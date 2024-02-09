@@ -4,17 +4,17 @@ import numpy as np
 import torch
 import tqdm
 import torch.nn.functional as F
-from skimage import exposure
+# from skimage import exposure
 from datetime import datetime
 import os
 import pathlib
-import itertools
-from PIL import Image
+# import itertools
+# from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import confusion_matrix
 # from visalize import generate_plots
 import matplotlib.pyplot as plt
-import shap
+# import shap
 import copy
 import warnings
 
@@ -144,7 +144,7 @@ class Trainer:
         if self.tensorboard:
             self.writer = SummaryWriter(log_dir="runs/" + condition + "_" + self.timestamp)
 
-    def plot_descriptive_dataset_stats(self, show_plots=True, save_plots=False):
+    def plot_descriptive_dataset_stats(self, show_plots=False, save_plots=True):
 
         train_data = self.train_data
         val_data = self.val_data
@@ -369,7 +369,7 @@ class Trainer:
         img = np.asarray(Image.open(slice_plot_path))
         plt.imshow(img)
         plt.axis('off')
-        plt.show()
+        #plt.show()
 
         return study
 

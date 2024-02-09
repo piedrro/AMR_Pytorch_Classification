@@ -1,5 +1,5 @@
 """
-STILL NEEDS TO BE ADAPTED TO TEST ONLY
+Adapted to test only, manual 2 classes
 """
 
 import torch
@@ -12,15 +12,16 @@ import pickle
 image_size = (64,64)
 resize = False
 
+#antibiotic_list = ["Untreated", "Ciprofloxacin"]
 antibiotic_list = ["Ciprofloxacin"]
-microscope_list = ["BIO_NIM"]
+microscope_list = ["BIO-NIM"]
 channel_list = ["Cy3"]
 cell_list = ["single"]
-train_metadata = {"content": "E.Coli MG1655",
-                  "segmentation_curated": True}
-test_metadata = {"user_meta1": "L17667",
-                 "segmentation_curated": True,
-                 "user_meta3": "BioRepA"}
+train_metadata = {"content": "E.Coli Clinical"}
+test_metadata = {"content": "E.Coli Clinical",
+                 "antibiotic concentration": "1XEUCAST",
+                 "user_meta1": "L48480",
+                 "user_meta3": "BioRepA"} # this tag includes only 0XEUCAST, 1XEUCAST, 20X, and none abx conc
 
 model_backbone = 'efficientnet_b0'
 
@@ -39,8 +40,10 @@ AKSEG_DIRECTORY = r"\\physics\dfs\DAQ\CondensedMatterGroups\AKGroup\Piers\AKSEG"
 USER_INITIAL = "AF"
 
 #SAVE_DIR = "/home/turnerp/PycharmProjects/AMR_Pytorch_Classification"
-SAVE_DIR = r"\\cmfs1.physics.ox.ac.uk\cm\farrara\code\AMR_PyTorch"
+SAVE_DIR = r"H:\code\AMR_PyTorch"
 MODEL_FOLDER_NAME = "AntibioticClassification"
+
+MODEL_PATH = r"C:\Users\farrara\Desktop\AMR_Pytorch_Classification\AMRClassification_[Ciprofloxacin-Cy3]_231118_1123"
 
 # device
 if torch.cuda.is_available():
@@ -56,6 +59,7 @@ akseg_metadata = get_metadata(AKSEG_DIRECTORY,
                               microscope_list,
                               train_metadata,
                               test_metadata,)
+akseg_metadata.to_csv('akseg_metadata.csv')
 
 if __name__ == '__main__':
 
@@ -75,22 +79,26 @@ if __name__ == '__main__':
     with open('cacheddata.pickle', 'rb') as handle:
         cached_data = pickle.load(handle)
 
-    num_classes = len(np.unique(cached_data["labels"]))
-
+    #num_classes = len(np.unique(cached_data["labels"]))
+    num_classes = 2 # Treated and untreated
     print(f"num_classes: {num_classes}, num_images: {len(cached_data['images'])}")
-
+    # Balance False for testing
     train_data, val_data, test_data = get_training_data(cached_data,
                                                           shuffle=True,
                                                           ratio_train = 0.8,
                                                           val_test_split=0.5,
                                                           label_limit = 'None',
-                                                          balance = True,)
+                                                          balance = False,)
 
     print(f"train_data: {len(train_data['images'])}, val_data: {len(val_data['images'])}, test_data: {len(test_data['images'])}")
     #
-    model = timm.create_model(model_backbone, pretrained=True, num_classes=len(antibiotic_list)).to(device)
+    model = timm.create_model(model_backbone, pretrained=True, num_classes=2).to(device)
     # 'timm.list_models()' to list available models
-
+    model_state_dict = torch.load(MODEL_PATH)['model_state_dict']
+    model.load_state_dict(model_state_dict, strict=False)
+    #model = torch.load(MODEL_PATH)
+    print(type(model))
+    antibiotic_list = ["Untreated", "Ciprofloxacin"]
     trainer = Trainer(model=model,
                       num_classes=num_classes,
                       augmentation=AUGMENT,
@@ -107,13 +115,6 @@ if __name__ == '__main__':
                       model_folder_name = MODEL_FOLDER_NAME)
 
     trainer.plot_descriptive_dataset_stats(show_plots=False, save_plots=True)
-
-    trainer.visualise_augmentations(n_examples=10, show_plots=False, save_plots=True)
-
-    trainer.tune_hyperparameters(num_trials=50, num_images = 2000, num_epochs = 10)
-
-    model_path = trainer.train()
-
-    trainer.evaluate(model_path)
-
-    # model_path = r"models/AntibioticClassification_230324_1832/[Ciprofloxacin-532-405]/AMRClassification_[Ciprofloxacin-532-405]_230324_1832"
+    #
+    model_data = trainer.evaluate(MODEL_PATH)
+    torch.cuda.empty_cache()

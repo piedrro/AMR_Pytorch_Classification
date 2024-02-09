@@ -4,7 +4,7 @@ import numpy as np
 from skimage import exposure
 import albumentations as A
 import torch.nn.functional as F
-from torchvision.transforms import Normalize
+# from torchvision.transforms import Normalize
 
 
 class load_dataset(data.Dataset):
@@ -56,10 +56,17 @@ class load_dataset(data.Dataset):
         mask = img.copy()
 
         # pixel transforms
+        #transform = A.Compose([
+        #    GaussNoise(var_limit=0.0005, per_channel=True, always_apply=False),
+        #    Blur(blur_limit=3, always_apply=False, p=0.5),
+        #    RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.5, always_apply=False),
+        #    PixelDropout(dropout_prob=0.05, per_channel=True, p=0.5),
+        #])
+        """ Remove blur
+        """
         transform = A.Compose([
             GaussNoise(var_limit=0.0005, per_channel=True, always_apply=False),
-            Blur(blur_limit=5, always_apply=False, p=0.5),
-            RandomBrightnessContrast(brightness_limit=0.05, contrast_limit=0.5, always_apply=False),
+            RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.5, always_apply=False),
             PixelDropout(dropout_prob=0.05, per_channel=True, p=0.5),
         ])
 

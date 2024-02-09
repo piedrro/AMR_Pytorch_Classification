@@ -3,15 +3,19 @@ from skimage import exposure
 import itertools
 from PIL import Image
 from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import io
 from sklearn.metrics import balanced_accuracy_score
-import shap
-import seaborn as sns
+# import shap
+# import seaborn as sns
 import matplotlib.pyplot as plt
-import pandas as pd
+# import pandas as pd
 import pathlib
 import os
+
+'''
+Currently test-stat correlations are disabled and image display
+'''
 
 def normalize99(X):
     """ normalize image so 0.0 is 0.01st percentile and 1.0 is 99.99th percentile """
@@ -208,13 +212,13 @@ def plot_confusion_matrix(true_labels, pred_labels, classes, num_samples=1, norm
 
     if save_path:
         plt.savefig(save_path, bbox_inches='tight', pad_inches=0, dpi=300)
-        plt.show()
+        #plt.show()
         image = Image.open(save_path)
         ar = np.asarray(image)
     else:
         with io.BytesIO() as buffer:
             plt.savefig(buffer, format="raw", bbox_inches='tight', pad_inches=0, dpi=300)
-            plt.show()
+            #plt.show()
             image = Image.open(buffer)
             ar = np.asarray(image)
 
@@ -285,7 +289,7 @@ def generate_prediction_images(miss_predictions, model_dir):
 
             plt.title(f"{prediction_type}. Label: {true_label}, Predicted Label: {predicted_label}", fontsize=10)
             plt.savefig(plot_save_path, bbox_inches='tight', pad_inches=0, dpi=300)
-            plt.show()
+            #plt.show()
             plt.close()
 
 
@@ -321,7 +325,7 @@ def generate_plots(model_data, save_path, model_directory):
     plt.legend(loc="upper right")
     plt.title("Loss Graph: " + condition)
     plt.savefig(loss_graph_path, bbox_inches='tight', dpi=300)
-    plt.show()
+    #plt.show()
     plt.close()
 
     plt.plot(train_accuracy, label="training accuracy")
@@ -331,11 +335,11 @@ def generate_plots(model_data, save_path, model_directory):
     plt.legend(loc="lower right")
     plt.title("Accuracy Graph: " + condition)
     plt.savefig(accuracy_graph_path, bbox_inches='tight', dpi=300)
-    plt.show()
+    #plt.show()
     plt.close()
 
     generate_prediction_images(test_predictions, model_directory)
-    plot_test_stat_correlations(model_data, model_directory)
+    #plot_test_stat_correlations(model_data, model_directory)
 
 
 def plot_test_stat_correlations(model_data, model_dir):
@@ -372,5 +376,5 @@ def plot_test_stat_correlations(model_data, model_dir):
         plt.legend(loc='lower right')
         plt.tight_layout()
         plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
-        plt.show()
+        #plt.show()
         plt.close()

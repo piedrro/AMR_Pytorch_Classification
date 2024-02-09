@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import traceback
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 def get_stats(image_channels, image, mask, cell_mask, cell_image_crop, cell_mask_crop, contour):
